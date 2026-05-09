@@ -6,14 +6,30 @@ import { useStudioStore } from "@/store/useStudioStore"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
-import { uploadToDrive, fetchDriveInventory, DriveFile, ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE } from "@/lib/google-drive"
+import { uploadToDrive, fetchDriveInventory, deleteFromDrive, DriveFile, ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE } from "@/lib/google-drive"
 import { toast } from "sonner"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 export function StudioInventory() {
-  const { inventory, selectedIndices, addImage, removeImage, toggleSelection } = useStudioStore()
+  const { inventory, selectedIndices, addImage, removeImage, toggleSelection, clearInventory } = useStudioStore()
   const [search, setSearch] = React.useState("")
   const [loading, setLoading] = React.useState(true)
   const [uploading, setUploading] = React.useState(false)
+  const [deleteId, setDeleteId] = React.useState<number | null>(null)
+  const [deleting, setDeleting] = React.useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   // Sync inventory with Google Drive on mount
@@ -21,12 +37,9 @@ export function StudioInventory() {
     const syncInventory = async () => {
       try {
         const files = await fetchDriveInventory()
-        // For simplicity in this demo, we use thumbnailLink as the URL
-        // In a real app, you might want to use webContentLink or a proxy
+        clearInventory() // Clear local state first to sync properly
         files.forEach(file => {
-          if (!inventory.includes(file.thumbnailLink)) {
-            addImage(file.thumbnailLink)
-          }
+          addImage(file)
         })
       } catch (err) {
         console.error("Sync failed", err)
@@ -62,14 +75,10 @@ export function StudioInventory() {
         const driveId = await uploadToDrive(file, file.name)
         if (driveId) {
           toast.success(`"${file.name}" uploaded successfully.`)
-          // Add to local state after successful upload
-          const reader = new FileReader()
-          reader.onload = (event) => {
-            if (event.target?.result) {
-              addImage(event.target.result as string)
-            }
-          }
-          reader.readAsDataURL(file)
+          // We should refresh full inventory to get the correct object from Drive
+          const refreshedFiles = await fetchDriveInventory()
+          clearInventory()
+          refreshedFiles.forEach(f => addImage(f))
         } else {
           toast.error(`Failed to upload "${file.name}" to Google Drive.`)
         }
@@ -78,6 +87,29 @@ export function StudioInventory() {
       toast.error("An unexpected error occurred during upload.")
     } finally {
       setUploading(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (deleteId === null) return
+    
+    const item = inventory[deleteId]
+    if (!item) return
+
+    setDeleting(true)
+    try {
+      const success = await deleteFromDrive(item.id)
+      if (success) {
+        removeImage(deleteId)
+        toast.success("Image deleted successfully from Drive.")
+      } else {
+        toast.error("Failed to delete image from Google Drive.")
+      }
+    } catch (err) {
+      toast.error("An error occurred during deletion.")
+    } finally {
+      setDeleting(false)
+      setDeleteId(null)
     }
   }
 
@@ -148,7 +180,7 @@ export function StudioInventory() {
                       : "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 hover:border-indigo-300"
                   )}
                 >
-                  <img src={img} alt={`Asset ${idx}`} className="object-cover w-full h-full" />
+                  <img src={img.thumbnailLink} alt={`Asset ${idx}`} className="object-cover w-full h-full" />
                   
                   {/* Selection Badge */}
                   {isSelected && (
@@ -168,22 +200,68 @@ export function StudioInventory() {
                     )} />
                   </div>
 
-                  {/* Remove Button */}
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      removeImage(idx)
-                    }}
-                    className="absolute top-1 right-1 p-1 bg-white/80 dark:bg-zinc-900/80 text-zinc-500 hover:text-rose-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm shadow-sm"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
+                  {/* Remove Button with Tooltip */}
+                  <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setDeleteId(idx)
+                            }}
+                            className="absolute top-1.5 right-1.5 p-1.5 bg-white/90 dark:bg-zinc-900/90 text-zinc-500 hover:text-rose-500 rounded-full opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm shadow-md border border-zinc-200 dark:border-zinc-800"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </TooltipTrigger>
+                      <TooltipContent side="left" className="bg-zinc-900 text-white border-none shadow-xl">
+                        Delete
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               )
             })}
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteId !== null} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <DialogContent className="max-w-md bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Delete Image?</DialogTitle>
+            <DialogDescription className="text-zinc-500 dark:text-zinc-400 mt-2">
+              This will permanently delete the image from your Google Drive inventory. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-6 gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => setDeleteId(null)}
+              disabled={deleting}
+              className="rounded-xl border-zinc-200 dark:border-zinc-800"
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDelete}
+              disabled={deleting}
+              className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white border-none shadow-lg shadow-rose-500/20 px-6"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Permanently"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -1,11 +1,12 @@
 import { create } from 'zustand'
+import { DriveFile } from '@/lib/google-drive'
 
 export type PaperSize = 'A4' | 'A5' | 'A6' | 'A7' | 'Letter' | 'Legal'
 export type Orientation = 'portrait' | 'landscape'
 export type ArrangementMode = 'sequential' | 'repeat' | 'smart-balanced'
 
 interface StudioState {
-  inventory: string[]
+  inventory: DriveFile[]
   selectedIndices: number[] // Indices of inventory items in selection order
   paperSize: PaperSize
   orientation: Orientation
@@ -13,10 +14,10 @@ interface StudioState {
   gridCount: number
   margin: number
   spacing: number
-  randomLayoutData: { url: string, x: number, y: number, rotation: number, scale: number }[] | null
+  randomLayoutData: { id: string, url: string, x: number, y: number, rotation: number, scale: number }[] | null
   
   // Actions
-  addImage: (url: string) => void
+  addImage: (file: DriveFile) => void
   removeImage: (index: number) => void
   toggleSelection: (index: number) => void
   setPaperSize: (size: PaperSize) => void
@@ -42,7 +43,7 @@ export const useStudioStore = create<StudioState>((set) => ({
   spacing: 10,
   randomLayoutData: null,
 
-  addImage: (url) => set((state) => ({ inventory: [...state.inventory, url] })),
+  addImage: (file) => set((state) => ({ inventory: [...state.inventory, file] })),
   
   removeImage: (index) => set((state) => {
     const newInventory = state.inventory.filter((_, i) => i !== index);
@@ -85,8 +86,10 @@ export const useStudioStore = create<StudioState>((set) => ({
     const randomItems = [];
     for (let i = 0; i < count; i++) {
       const randomIndex = Math.floor(Math.random() * state.inventory.length);
+      const item = state.inventory[randomIndex];
       randomItems.push({
-        url: state.inventory[randomIndex],
+        id: item.id,
+        url: item.thumbnailLink,
         x: Math.random() * 80 + 10, // 10% to 90%
         y: Math.random() * 80 + 10,
         rotation: Math.random() * 360,

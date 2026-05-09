@@ -38,7 +38,7 @@ export function StudioCanvas() {
 
   // Generate the items to display based on arrangement mode
   const displayItems = React.useMemo(() => {
-    const baseItems = selectedIndices.map(idx => inventory[idx]).filter(Boolean)
+    const baseItems = selectedIndices.map(idx => inventory[idx]?.thumbnailLink).filter(Boolean)
     if (baseItems.length === 0) return []
 
     let result: string[] = []

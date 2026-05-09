@@ -150,3 +150,22 @@ export async function uploadToDrive(file: File | Blob, fileName: string): Promis
     return null
   }
 }
+
+/**
+ * Deletes a file from Google Drive.
+ */
+export async function deleteFromDrive(fileId: string): Promise<boolean> {
+  const token = await getGoogleToken()
+  if (!token) return false
+
+  try {
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    return res.status === 204
+  } catch (error) {
+    console.error('Error deleting from Drive:', error)
+    return false
+  }
+}
