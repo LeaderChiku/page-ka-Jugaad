@@ -2,7 +2,7 @@ import { create } from 'zustand'
 
 export type PaperSize = 'A4' | 'A5' | 'A6' | 'A7' | 'Letter' | 'Legal'
 export type Orientation = 'portrait' | 'landscape'
-export type ArrangementMode = 'sequential' | 'random' | 'repeat' | 'smart-balanced'
+export type ArrangementMode = 'sequential' | 'repeat' | 'smart-balanced'
 
 interface StudioState {
   inventory: string[]
@@ -13,6 +13,7 @@ interface StudioState {
   gridCount: number
   margin: number
   spacing: number
+  randomLayoutData: { url: string, x: number, y: number, rotation: number, scale: number }[] | null
   
   // Actions
   addImage: (url: string) => void
@@ -26,6 +27,8 @@ interface StudioState {
   setSpacing: (spacing: number) => void
   clearInventory: () => void
   clearSelection: () => void
+  generateRandomLayout: (count: number) => void
+  clearRandomLayout: () => void
 }
 
 export const useStudioStore = create<StudioState>((set) => ({
@@ -37,6 +40,7 @@ export const useStudioStore = create<StudioState>((set) => ({
   gridCount: 4,
   margin: 20,
   spacing: 10,
+  randomLayoutData: null,
 
   addImage: (url) => set((state) => ({ inventory: [...state.inventory, url] })),
   
@@ -73,6 +77,23 @@ export const useStudioStore = create<StudioState>((set) => ({
   setGridCount: (gridCount) => set({ gridCount }),
   setMargin: (margin) => set({ margin }),
   setSpacing: (spacing) => set({ spacing }),
-  clearInventory: () => set({ inventory: [], selectedIndices: [] }),
+  clearInventory: () => set({ inventory: [], selectedIndices: [], randomLayoutData: null }),
   clearSelection: () => set({ selectedIndices: [] }),
+  generateRandomLayout: (count) => set((state) => {
+    if (state.inventory.length === 0) return state;
+    
+    const randomItems = [];
+    for (let i = 0; i < count; i++) {
+      const randomIndex = Math.floor(Math.random() * state.inventory.length);
+      randomItems.push({
+        url: state.inventory[randomIndex],
+        x: Math.random() * 80 + 10, // 10% to 90%
+        y: Math.random() * 80 + 10,
+        rotation: Math.random() * 360,
+        scale: 0.5 + Math.random() * 1.0
+      });
+    }
+    return { randomLayoutData: randomItems, arrangementMode: 'sequential' }; // Switch to sequential but show random data
+  }),
+  clearRandomLayout: () => set({ randomLayoutData: null }),
 }))

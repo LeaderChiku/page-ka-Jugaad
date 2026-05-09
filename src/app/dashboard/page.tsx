@@ -4,6 +4,7 @@ import { LogOut, LayoutDashboard, Settings, User, FileImage } from 'lucide-react
 import Link from 'next/link'
 import { QuickActions } from '@/components/quick-actions'
 import { RecentProjects } from '@/components/recent-projects'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { SiteHeader } from '@/components/site-header'
 
@@ -73,16 +74,20 @@ export default async function DashboardPage() {
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto custom-scrollbar">
           <div className="p-4 lg:p-8 max-w-6xl mx-auto space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">Welcome, {displayName}!</h1>
                 <p className="text-zinc-500 dark:text-zinc-400 text-sm">
                   Quick overview of your printable assets.
                 </p>
               </div>
+              <Link href="/create-layout">
+                <Button className="rounded-xl px-6 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20">
+                  <FileImage className="mr-2 h-4 w-4" />
+                  Create New Layout
+                </Button>
+              </Link>
             </div>
-
-            <QuickActions />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <RecentProjects />

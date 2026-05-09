@@ -12,7 +12,6 @@ const PAPER_RATIOS: Record<PaperSize, number> = {
   'Letter': 1.294,
   'Legal': 1.647
 }
-
 export function StudioCanvas() {
   const { 
     inventory, 
@@ -22,7 +21,8 @@ export function StudioCanvas() {
     arrangementMode,
     gridCount, 
     margin, 
-    spacing 
+    spacing,
+    randomLayoutData 
   } = useStudioStore()
 
   const ratio = PAPER_RATIOS[paperSize]
@@ -45,44 +45,49 @@ export function StudioCanvas() {
 
     switch (arrangementMode) {
       case 'repeat':
-        // Cycle through base items until gridCount is reached
+        // Professional rotating repeat pattern
+        const rowLength = cols
         for (let i = 0; i < gridCount; i++) {
-          result.push(baseItems[i % baseItems.length])
-        }
-        break
-
-      case 'random':
-        // Shuffle the base items then cycle
-        const shuffled = [...baseItems].sort(() => Math.random() - 0.5)
-        for (let i = 0; i < gridCount; i++) {
-          result.push(shuffled[i % shuffled.length])
+          const rowIndex = Math.floor(i / rowLength)
+          // Rotate start index each row: (i + rowIndex) % baseItems.length
+          result.push(baseItems[(i + rowIndex) % baseItems.length])
         }
         break
 
       case 'smart-balanced':
-        // Try to distribute evenly (simplified as repeat for now but could be more complex)
-        for (let i = 0; i < gridCount; i++) {
-          result.push(baseItems[i % baseItems.length])
+        // Balanced distribution (centered if fewer items than slots)
+        const totalItems = baseItems.length
+        if (totalItems < gridCount && totalItems > 0) {
+           const startSlot = Math.floor((gridCount - totalItems) / 2)
+           for (let i = 0; i < gridCount; i++) {
+             if (i >= startSlot && i < startSlot + totalItems) {
+                result.push(baseItems[i - startSlot])
+             } else {
+                result.push("")
+             }
+           }
+        } else {
+           for (let i = 0; i < gridCount; i++) {
+             result.push(baseItems[i % baseItems.length])
+           }
         }
         break
 
       case 'sequential':
       default:
-        // Fill slots in sequence, then stop or repeat if specified? 
-        // User asked for A->B->C then A->B->C if repeat enabled. 
-        // Let's assume auto-repeat for sequential if gridCount > selected count
+        // Fill top slots only in exact order
         for (let i = 0; i < gridCount; i++) {
           if (i < baseItems.length) {
             result.push(baseItems[i])
           } else {
-            result.push(baseItems[i % baseItems.length])
+            result.push("") // Empty slots
           }
         }
         break
     }
 
     return result
-  }, [inventory, selectedIndices, arrangementMode, gridCount])
+  }, [inventory, selectedIndices, arrangementMode, gridCount, cols])
 
   return (
     <div className="flex-1 bg-zinc-100 dark:bg-zinc-950 flex items-center justify-center p-4 lg:p-12 overflow-auto custom-scrollbar relative">
@@ -98,43 +103,77 @@ export function StudioCanvas() {
             backgroundColor: '#ffffff'
           }}
         >
-          <div 
-            className="grid h-full w-full"
-            style={{
-              gridTemplateColumns: `repeat(${cols}, 1fr)`,
-              gap: `${spacing}px`,
-            }}
-          >
-            {Array.from({ length: gridCount }).map((_, i) => (
-              <div 
-                key={i} 
-                className="border border-zinc-50 dark:border-zinc-900 rounded-sm flex items-center justify-center overflow-hidden bg-zinc-50/10"
-              >
-                {displayItems[i] ? (
-                  <img 
-                    src={displayItems[i]} 
-                    className="w-full h-full object-contain p-1" 
-                    alt={`Layout Item ${i}`}
-                  />
-                ) : (
-                  <div className="text-[8px] text-zinc-200 font-mono flex flex-col items-center gap-1 opacity-40">
-                    <div className="w-4 h-px bg-zinc-200"></div>
-                    SLOT {i + 1}
-                    <div className="w-4 h-px bg-zinc-200"></div>
+            {randomLayoutData ? (
+              <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                {randomLayoutData.map((item, idx) => (
+                  <div 
+                    key={idx}
+                    className="absolute"
+                    style={{
+                      left: `${item.x}%`,
+                      top: `${item.y}%`,
+                      transform: `translate(-50%, -50%) rotate(${item.rotation}deg) scale(${item.scale})`,
+                      width: '100px',
+                      height: '100px'
+                    }}
+                  >
+                    <img src={item.url} className="w-full h-full object-contain drop-shadow-md" alt="Random Item" />
                   </div>
-                )}
+                ))}
               </div>
-            ))}
-          </div>
+            ) : (
+              <div 
+                className="grid h-full w-full"
+                style={{
+                  gridTemplateColumns: `repeat(${cols}, 1fr)`,
+                  gap: `${spacing}px`,
+                }}
+              >
+                {Array.from({ length: gridCount }).map((_, i) => (
+                  <div 
+                    key={i} 
+                    className="border border-zinc-50 dark:border-zinc-900 rounded-sm flex items-center justify-center overflow-hidden bg-zinc-50/10"
+                  >
+                    {displayItems[i] ? (
+                      <img 
+                        src={displayItems[i]} 
+                        className="w-full h-full object-contain p-1" 
+                        alt={`Layout Item ${i}`}
+                      />
+                    ) : (
+                      <div className="text-[8px] text-zinc-200 font-mono flex flex-col items-center gap-1 opacity-40">
+                        <div className="w-4 h-px bg-zinc-200"></div>
+                        SLOT {i + 1}
+                        <div className="w-4 h-px bg-zinc-200"></div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
 
           {/* Paper Info Overlay (Only visible in UI, not export) */}
-          <div className="absolute -top-12 left-0 text-[10px] font-bold font-mono text-zinc-400 flex gap-6 uppercase tracking-[0.2em] pointer-events-none">
-            <span className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-              {paperSize} {orientation}
-            </span>
-            <span>{gridCount} Slots</span>
-            <span className="text-indigo-500/50">{arrangementMode}</span>
+          <div className="absolute -top-16 left-0 right-0 flex items-end justify-between text-zinc-400 font-bold font-mono tracking-[0.2em] pointer-events-none select-none px-2">
+            <div className="flex flex-col gap-1">
+              <span className="text-xl text-zinc-900 dark:text-white flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-indigo-500 animate-pulse"></div>
+                {paperSize}
+              </span>
+              <span className="text-[10px] uppercase opacity-60">{orientation} Layout</span>
+            </div>
+            
+            <div className="flex flex-col items-end gap-1">
+              <div className="flex gap-4">
+                <span className="text-indigo-500">{randomLayoutData ? 'RANDOM' : arrangementMode.toUpperCase()}</span>
+                <span>{gridCount} SLOTS</span>
+              </div>
+              <div className="w-24 h-1 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-indigo-500 transition-all duration-500" 
+                  style={{ width: `${(selectedIndices.length / gridCount) * 100}%` }}
+                ></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

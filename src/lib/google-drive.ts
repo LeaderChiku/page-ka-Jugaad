@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 
-const APP_FOLDER_NAME = 'PageKaJugaad'
+const APP_FOLDER_NAME = 'PageKaJugaad Inventory'
 
 export interface DriveFile {
   id: string
@@ -64,10 +64,15 @@ export async function getOrCreateAppFolder(): Promise<string | null> {
       },
       body: JSON.stringify({
         name: APP_FOLDER_NAME,
-        mimeType: 'application/vnd.google-apps.folder'
+        mimeType: 'application/vnd.google-apps.folder',
+        description: 'Auto-generated folder for PageKaJugaad application assets'
       })
     })
     const createData = await createRes.json()
+    if (createData.error) {
+      console.error('Drive Folder Creation Error:', createData.error)
+      return null
+    }
     return createData.id
   } catch (error) {
     console.error('Error getting/creating Drive folder:', error)

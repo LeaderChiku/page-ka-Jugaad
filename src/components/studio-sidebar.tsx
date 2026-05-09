@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { LayoutGrid, Shuffle, Repeat, Zap } from "lucide-react"
+import { LayoutGrid, Shuffle, Repeat, Zap, X } from "lucide-react"
 
 export function StudioSidebar() {
   const { 
@@ -70,28 +70,66 @@ export function StudioSidebar() {
         {/* Arrangement Mode */}
         <div className="space-y-3">
           <Label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Arrangement Mode</Label>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2">
             {[
-              { id: 'sequential', label: 'Sequential', icon: LayoutGrid },
-              { id: 'random', label: 'Random', icon: Shuffle },
-              { id: 'repeat', label: 'Repeat', icon: Repeat },
-              { id: 'smart-balanced', label: 'Smart', icon: Zap },
+              { id: 'sequential', label: 'Sequential Flow', icon: LayoutGrid, desc: 'Fills slots in selection order' },
+              { id: 'repeat', label: 'Rotating Pattern', icon: Repeat, desc: 'Dynamic repeating row pattern' },
+              { id: 'smart-balanced', label: 'Balanced Grid', icon: Zap, desc: 'Optimal centered distribution' },
             ].map((mode) => (
               <button
                 key={mode.id}
-                onClick={() => setArrangementMode(mode.id as ArrangementMode)}
+                onClick={() => {
+                  useStudioStore.getState().clearRandomLayout()
+                  setArrangementMode(mode.id as ArrangementMode)
+                }}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-2 p-3 rounded-xl border transition-all",
-                  arrangementMode === mode.id 
+                  "flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
+                  arrangementMode === mode.id && !useStudioStore.getState().randomLayoutData
                     ? "bg-indigo-50 border-indigo-200 text-indigo-600 dark:bg-indigo-900/20 dark:border-indigo-800/50 dark:text-indigo-400" 
                     : "bg-zinc-50 border-zinc-100 text-zinc-500 hover:border-zinc-200 dark:bg-zinc-950 dark:border-zinc-900"
                 )}
               >
-                <mode.icon className="h-4 w-4" />
-                <span className="text-[10px] font-medium">{mode.label}</span>
+                <div className="h-8 w-8 rounded-lg bg-white dark:bg-zinc-900 flex items-center justify-center border border-inherit">
+                  <mode.icon className="h-4 w-4" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[11px] font-bold uppercase">{mode.label}</span>
+                  <span className="text-[9px] opacity-60">{mode.desc}</span>
+                </div>
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Random Generator */}
+        <div className="space-y-3 pt-2">
+          <Label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Magic Features</Label>
+          {useStudioStore.getState().randomLayoutData ? (
+             <Button 
+               variant="outline" 
+               className="w-full rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50"
+               onClick={() => useStudioStore.getState().clearRandomLayout()}
+             >
+               <X className="mr-2 h-4 w-4" />
+               Reset to Grid Layout
+             </Button>
+          ) : (
+             <Button 
+               className="w-full rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white border-none shadow-md"
+               onClick={() => {
+                 const count = prompt("How many random items to scatter? (1-50)", "12")
+                 if (count) {
+                    const n = parseInt(count)
+                    if (!isNaN(n) && n > 0) {
+                      useStudioStore.getState().generateRandomLayout(n)
+                    }
+                 }
+               }}
+             >
+               <Shuffle className="mr-2 h-4 w-4" />
+               Generate Random Layout
+             </Button>
+          )}
         </div>
 
         {/* Grid Count */}
