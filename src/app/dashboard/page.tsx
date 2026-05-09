@@ -135,7 +135,7 @@ export default async function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[n                { title: 'Total Layouts', value: '0', color: 'from-indigo-500/20 to-blue-500/20', text: 'text-indigo-600 dark:text-indigo-400' },
+              {[                { title: 'Total Layouts', value: '0', color: 'from-indigo-500/20 to-blue-500/20', text: 'text-indigo-600 dark:text-indigo-400' },
                 { title: 'Assets Uploaded', value: '0', color: 'from-rose-500/20 to-orange-500/20', text: 'text-rose-600 dark:text-rose-400' },
                 { title: 'Storage Used', value: '0 MB', color: 'from-emerald-500/20 to-teal-500/20', text: 'text-emerald-600 dark:text-emerald-400' },
               ].map((stat, i) => (
