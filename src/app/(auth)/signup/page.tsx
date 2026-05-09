@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 
+import { ArrowLeft } from "lucide-react"
+
 export default function SignupPage() {
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
@@ -52,6 +54,11 @@ export default function SignupPage() {
       provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+        scopes: 'https://www.googleapis.com/auth/drive.file',
       },
     })
     
@@ -62,12 +69,27 @@ export default function SignupPage() {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl border border-white/20 dark:border-zinc-800/50 p-8 rounded-3xl shadow-2xl"
-    >
+    <div className="relative">
+      {/* Back Button */}
+      <motion.button
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        whileHover={{ x: -4 }}
+        onClick={() => router.push("/")}
+        className="absolute -top-12 left-0 flex items-center gap-2 text-sm font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors group"
+      >
+        <div className="h-8 w-8 rounded-full border border-zinc-200 dark:border-zinc-800 flex items-center justify-center bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm group-hover:border-zinc-300 dark:group-hover:border-zinc-700 transition-all">
+          <ArrowLeft className="h-4 w-4" />
+        </div>
+        Back
+      </motion.button>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl border border-white/20 dark:border-zinc-800/50 p-8 rounded-3xl shadow-2xl"
+      >
       <div className="flex flex-col space-y-2 text-center mb-8">
         <h1 className="text-3xl font-bold tracking-tighter">Create an account</h1>
         <p className="text-muted-foreground text-sm">
@@ -164,6 +186,7 @@ export default function SignupPage() {
           Sign in
         </Link>
       </div>
-    </motion.div>
+      </motion.div>
+    </div>
   )
 }
