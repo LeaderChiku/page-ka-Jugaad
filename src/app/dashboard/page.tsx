@@ -2,6 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { LogOut, LayoutDashboard, Settings, User } from 'lucide-react'
 import Link from 'next/link'
+import { QuickActions } from '@/components/quick-actions'
+import { RecentProjects } from '@/components/recent-projects'
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -23,12 +26,12 @@ export default async function DashboardPage() {
       {/* Sidebar Navigation */}
       <aside className="w-64 border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hidden md:flex flex-col">
         <div className="p-6">
-          <div className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-rose-500 flex items-center justify-center">
               <span className="text-white font-bold text-xl">P</span>
             </div>
             <span className="font-bold text-xl tracking-tight dark:text-white">PageKaJugaad</span>
-          </div>
+          </Link>
         </div>
         
         <nav className="flex-1 px-4 py-4 space-y-2">
@@ -36,7 +39,7 @@ export default async function DashboardPage() {
             <LayoutDashboard className="h-5 w-5 text-indigo-500" />
             <span className="font-medium">Dashboard</span>
           </Link>
-          <Link href="/dashboard" className="flex items-center gap-3 px-3 py-2 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-white rounded-lg transition-colors">
+          <Link href="/settings" className="flex items-center gap-3 px-3 py-2 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-white rounded-lg transition-colors">
             <Settings className="h-5 w-5" />
             <span className="font-medium">Settings</span>
           </Link>
@@ -75,12 +78,12 @@ export default async function DashboardPage() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="h-16 border-b border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 backdrop-blur-xl flex items-center justify-between px-6 md:hidden">
-           <div className="flex items-center gap-2">
+           <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-rose-500 flex items-center justify-center">
               <span className="text-white font-bold text-xl">P</span>
             </div>
             <span className="font-bold text-xl tracking-tight dark:text-white">PageKaJugaad</span>
-          </div>
+          </Link>
           <form action="/auth/signout" method="post">
             <button
               type="submit"
@@ -96,13 +99,43 @@ export default async function DashboardPage() {
             <div>
               <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Welcome back, {displayName}!</h1>
               <p className="text-zinc-600 dark:text-zinc-400 mt-1">
-                You've successfully logged in. Here's what's happening with your layouts.
+                Here's what's happening with your layouts.
               </p>
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[
-                { title: 'Total Layouts', value: '0', color: 'from-indigo-500/20 to-blue-500/20', text: 'text-indigo-600 dark:text-indigo-400' },
+            <QuickActions />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <RecentProjects />
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Exports</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Export 1</p>
+                        <p className="text-sm text-muted-foreground">Exported on 2023-10-27</p>
+                      </div>
+                      <p className="text-sm text-muted-foreground">PDF</p>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Export 2</p>
+                        <p className="text-sm text-muted-foreground">Exported on 2023-10-26</p>
+                      </div>
+                      <p className="text-sm text-muted-foreground">PDF</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Statistics</CardTitle>
+                </CardHeader>
+                <CardContent>
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {[n                { title: 'Total Layouts', value: '0', color: 'from-indigo-500/20 to-blue-500/20', text: 'text-indigo-600 dark:text-indigo-400' },
                 { title: 'Assets Uploaded', value: '0', color: 'from-rose-500/20 to-orange-500/20', text: 'text-rose-600 dark:text-rose-400' },
                 { title: 'Storage Used', value: '0 MB', color: 'from-emerald-500/20 to-teal-500/20', text: 'text-emerald-600 dark:text-emerald-400' },
               ].map((stat, i) => (
@@ -113,19 +146,8 @@ export default async function DashboardPage() {
                 </div>
               ))}
             </div>
-
-            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden flex flex-col items-center justify-center p-12 text-center min-h-[400px]">
-               <div className="w-20 h-20 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-6 border border-zinc-200 dark:border-zinc-700 shadow-inner">
-                  <LayoutDashboard className="h-8 w-8 text-zinc-400 dark:text-zinc-500" />
-               </div>
-               <h3 className="text-xl font-semibold text-zinc-900 dark:text-white mb-2">No layouts yet</h3>
-               <p className="text-zinc-500 dark:text-zinc-400 max-w-sm mb-8">
-                 Start creating your first print-ready layout by uploading some stickers or artwork.
-               </p>
-               <button className="px-6 py-3 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-900 font-medium rounded-full transition-colors shadow-lg shadow-zinc-900/20 dark:shadow-white/10">
-                 Create New Layout
-               </button>
-            </div>
+                </CardContent>
+              </Card>
           </div>
         </div>
       </main>
