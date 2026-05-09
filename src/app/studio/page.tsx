@@ -38,27 +38,30 @@ export default function StudioPage() {
 
     setExporting(true)
     try {
+      // Create a clean version for export (optional: remove UI-only elements if any)
       const canvas = await html2canvas(element, {
-        scale: 3, // High quality
+        scale: 4, // Ultra high quality for print
         useCORS: true,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        logging: false,
       })
       
-      const imgData = canvas.toDataURL('image/png')
+      const imgData = canvas.toDataURL('image/png', 1.0)
       const isPortrait = orientation === 'portrait'
       
-      // Calculate PDF dimensions in mm (A4 is 210x297)
+      // jsPDF instance
       const pdf = new jsPDF({
         orientation: isPortrait ? 'p' : 'l',
         unit: 'mm',
-        format: paperSize.toLowerCase()
+        format: paperSize.toLowerCase() as any
       })
 
       const pdfWidth = pdf.internal.pageSize.getWidth()
       const pdfHeight = pdf.internal.pageSize.getHeight()
 
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
-      pdf.save(`layout-${Date.now()}.pdf`)
+      // Add image to cover the full PDF page
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST')
+      pdf.save(`Layout-${paperSize}-${orientation}-${Date.now()}.pdf`)
     } catch (err) {
       console.error("PDF Export failed:", err)
     } finally {

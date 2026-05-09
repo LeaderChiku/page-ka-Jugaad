@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useStudioStore, PaperSize, Orientation, LayoutType } from "@/store/useStudioStore"
+import { useStudioStore, PaperSize, Orientation, ArrangementMode } from "@/store/useStudioStore"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
@@ -12,12 +12,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { LayoutGrid, Shuffle, Repeat, Zap } from "lucide-react"
 
 export function StudioSidebar() {
   const { 
     paperSize, setPaperSize,
     orientation, setOrientation,
-    layoutType, setLayoutType,
+    arrangementMode, setArrangementMode,
     gridCount, setGridCount,
     margin, setMargin,
     spacing, setSpacing
@@ -32,9 +33,9 @@ export function StudioSidebar() {
       <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
         {/* Paper Size */}
         <div className="space-y-3">
-          <Label className="text-xs uppercase tracking-wider text-zinc-500">Paper Size</Label>
+          <Label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Paper Size</Label>
           <Select value={paperSize} onValueChange={(v) => setPaperSize(v as PaperSize)}>
-            <SelectTrigger className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-950">
+            <SelectTrigger className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-950 border-none h-11">
               <SelectValue placeholder="Select size" />
             </SelectTrigger>
             <SelectContent>
@@ -47,18 +48,18 @@ export function StudioSidebar() {
 
         {/* Orientation */}
         <div className="space-y-3">
-          <Label className="text-xs uppercase tracking-wider text-zinc-500">Orientation</Label>
-          <div className="grid grid-cols-2 gap-2">
+          <Label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Orientation</Label>
+          <div className="grid grid-cols-2 gap-2 p-1 bg-zinc-50 dark:bg-zinc-950 rounded-xl">
             <Button 
-              variant={orientation === 'portrait' ? 'default' : 'outline'}
-              className="rounded-xl h-10 text-xs"
+              variant={orientation === 'portrait' ? 'default' : 'ghost'}
+              className={orientation === 'portrait' ? "rounded-lg h-9 text-xs shadow-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white hover:bg-white dark:hover:bg-zinc-800" : "rounded-lg h-9 text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900"}
               onClick={() => setOrientation('portrait')}
             >
               Portrait
             </Button>
             <Button 
-              variant={orientation === 'landscape' ? 'default' : 'outline'}
-              className="rounded-xl h-10 text-xs"
+              variant={orientation === 'landscape' ? 'default' : 'ghost'}
+              className={orientation === 'landscape' ? "rounded-lg h-9 text-xs shadow-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white hover:bg-white dark:hover:bg-zinc-800" : "rounded-lg h-9 text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900"}
               onClick={() => setOrientation('landscape')}
             >
               Landscape
@@ -66,32 +67,44 @@ export function StudioSidebar() {
           </div>
         </div>
 
-        {/* Grid Count */}
+        {/* Arrangement Mode */}
         <div className="space-y-3">
-          <Label className="text-xs uppercase tracking-wider text-zinc-500">Items Per Page</Label>
-          <Select value={gridCount.toString()} onValueChange={(v) => setGridCount(parseInt(v))}>
-            <SelectTrigger className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-950">
-              <SelectValue placeholder="Select count" />
-            </SelectTrigger>
-            <SelectContent>
-              {[1, 2, 4, 6, 8, 12, 20].map(n => (
-                <SelectItem key={n} value={n.toString()}>{n} Items</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Arrangement Mode</Label>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { id: 'sequential', label: 'Sequential', icon: LayoutGrid },
+              { id: 'random', label: 'Random', icon: Shuffle },
+              { id: 'repeat', label: 'Repeat', icon: Repeat },
+              { id: 'smart-balanced', label: 'Smart', icon: Zap },
+            ].map((mode) => (
+              <button
+                key={mode.id}
+                onClick={() => setArrangementMode(mode.id as ArrangementMode)}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-2 p-3 rounded-xl border transition-all",
+                  arrangementMode === mode.id 
+                    ? "bg-indigo-50 border-indigo-200 text-indigo-600 dark:bg-indigo-900/20 dark:border-indigo-800/50 dark:text-indigo-400" 
+                    : "bg-zinc-50 border-zinc-100 text-zinc-500 hover:border-zinc-200 dark:bg-zinc-950 dark:border-zinc-900"
+                )}
+              >
+                <mode.icon className="h-4 w-4" />
+                <span className="text-[10px] font-medium">{mode.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Layout Type */}
+        {/* Grid Count */}
         <div className="space-y-3">
-          <Label className="text-xs uppercase tracking-wider text-zinc-500">Layout Engine</Label>
-          <Select value={layoutType} onValueChange={(v) => setLayoutType(v as LayoutType)}>
-            <SelectTrigger className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-950">
-              <SelectValue placeholder="Select engine" />
+          <Label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Layout Slots</Label>
+          <Select value={gridCount.toString()} onValueChange={(v) => setGridCount(parseInt(v))}>
+            <SelectTrigger className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-950 border-none h-11">
+              <SelectValue placeholder="Select slots" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="grid">Balanced Grid</SelectItem>
-              <SelectItem value="auto">Smart Auto-Arrange</SelectItem>
-              <SelectItem value="freeform" disabled>Freeform (Soon)</SelectItem>
+              {[1, 2, 4, 6, 8, 12, 20, 32].map(n => (
+                <SelectItem key={n} value={n.toString()}>{n} Slots</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -100,29 +113,29 @@ export function StudioSidebar() {
         <div className="space-y-6 pt-4">
           <div className="space-y-3">
             <div className="flex justify-between">
-              <Label className="text-xs uppercase tracking-wider text-zinc-500">Page Margin</Label>
-              <span className="text-xs font-mono text-zinc-400">{margin}px</span>
+              <Label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Page Margin</Label>
+              <span className="text-[10px] font-mono font-bold text-indigo-500">{margin}px</span>
             </div>
             <Slider 
               value={[margin]} 
               onValueChange={(v) => setMargin(Array.isArray(v) ? v[0] : v)} 
               max={100} 
               step={1} 
-              className="py-4"
+              className="py-2"
             />
           </div>
 
           <div className="space-y-3">
             <div className="flex justify-between">
-              <Label className="text-xs uppercase tracking-wider text-zinc-500">Item Spacing</Label>
-              <span className="text-xs font-mono text-zinc-400">{spacing}px</span>
+              <Label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Item Spacing</Label>
+              <span className="text-[10px] font-mono font-bold text-indigo-500">{spacing}px</span>
             </div>
             <Slider 
               value={[spacing]} 
               onValueChange={(v) => setSpacing(Array.isArray(v) ? v[0] : v)} 
               max={50} 
               step={1} 
-              className="py-4"
+              className="py-2"
             />
           </div>
         </div>
@@ -131,3 +144,6 @@ export function StudioSidebar() {
   )
 }
 
+function cn(...inputs: any[]) {
+  return inputs.filter(Boolean).join(' ')
+}

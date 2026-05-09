@@ -16,8 +16,10 @@ const PAPER_RATIOS: Record<PaperSize, number> = {
 export function StudioCanvas() {
   const { 
     inventory, 
+    selectedIndices,
     paperSize, 
     orientation, 
+    arrangementMode,
     gridCount, 
     margin, 
     spacing 
@@ -26,8 +28,7 @@ export function StudioCanvas() {
   const ratio = PAPER_RATIOS[paperSize]
   const isPortrait = orientation === 'portrait'
   
-  // Calculate grid columns and rows based on gridCount
-  // We'll aim for balanced layouts
+  // Calculate grid columns based on gridCount
   let cols = 1;
   if (gridCount >= 20) cols = 4;
   else if (gridCount >= 12) cols = 3;
@@ -35,49 +36,131 @@ export function StudioCanvas() {
   else if (gridCount >= 4) cols = 2;
   else if (gridCount >= 2) cols = 2;
 
+  // Generate the items to display based on arrangement mode
+  const displayItems = React.useMemo(() => {
+    const baseItems = selectedIndices.map(idx => inventory[idx]).filter(Boolean)
+    if (baseItems.length === 0) return []
+
+    let result: string[] = []
+
+    switch (arrangementMode) {
+      case 'repeat':
+        // Cycle through base items until gridCount is reached
+        for (let i = 0; i < gridCount; i++) {
+          result.push(baseItems[i % baseItems.length])
+        }
+        break
+
+      case 'random':
+        // Shuffle the base items then cycle
+        const shuffled = [...baseItems].sort(() => Math.random() - 0.5)
+        for (let i = 0; i < gridCount; i++) {
+          result.push(shuffled[i % shuffled.length])
+        }
+        break
+
+      case 'smart-balanced':
+        // Try to distribute evenly (simplified as repeat for now but could be more complex)
+        for (let i = 0; i < gridCount; i++) {
+          result.push(baseItems[i % baseItems.length])
+        }
+        break
+
+      case 'sequential':
+      default:
+        // Fill slots in sequence, then stop or repeat if specified? 
+        // User asked for A->B->C then A->B->C if repeat enabled. 
+        // Let's assume auto-repeat for sequential if gridCount > selected count
+        for (let i = 0; i < gridCount; i++) {
+          if (i < baseItems.length) {
+            result.push(baseItems[i])
+          } else {
+            result.push(baseItems[i % baseItems.length])
+          }
+        }
+        break
+    }
+
+    return result
+  }, [inventory, selectedIndices, arrangementMode, gridCount])
+
   return (
-    <div className="flex-1 bg-zinc-100 dark:bg-zinc-950 flex items-center justify-center p-8 overflow-auto custom-scrollbar">
-      <div 
-        id="studio-canvas-paper"
-        className="bg-white shadow-2xl transition-all duration-500 relative"
-        style={{
-          width: isPortrait ? '500px' : `${500 * ratio}px`,
-          height: isPortrait ? `${500 * ratio}px` : '500px',
-          padding: `${margin}px`
-        }}
-      >
+    <div className="flex-1 bg-zinc-100 dark:bg-zinc-950 flex items-center justify-center p-4 lg:p-12 overflow-auto custom-scrollbar relative">
+      {/* Zoom Container to make full paper visible */}
+      <div className="transform scale-[0.65] lg:scale-[0.8] transition-transform origin-center">
         <div 
-          className="grid h-full w-full"
+          id="studio-canvas-paper"
+          className="bg-white shadow-2xl transition-all duration-500 relative mx-auto"
           style={{
-            gridTemplateColumns: `repeat(${cols}, 1fr)`,
-            gap: `${spacing}px`,
+            width: isPortrait ? '500px' : `${500 * ratio}px`,
+            height: isPortrait ? `${500 * ratio}px` : '500px',
+            padding: `${margin}px`,
+            backgroundColor: '#ffffff'
           }}
         >
-          {Array.from({ length: gridCount }).map((_, i) => (
-            <div 
-              key={i} 
-              className="border border-zinc-100 dark:border-zinc-800 rounded-sm flex items-center justify-center overflow-hidden bg-zinc-50/30"
-            >
-              {inventory[i % inventory.length] ? (
-                <img 
-                  src={inventory[i % inventory.length]} 
-                  className="w-full h-full object-contain" 
-                  alt="Canvas Item"
-                />
-              ) : (
-                <div className="text-[10px] text-zinc-300 font-mono">CELL {i + 1}</div>
-              )}
-            </div>
-          ))}
-        </div>
+          <div 
+            className="grid h-full w-full"
+            style={{
+              gridTemplateColumns: `repeat(${cols}, 1fr)`,
+              gap: `${spacing}px`,
+            }}
+          >
+            {Array.from({ length: gridCount }).map((_, i) => (
+              <div 
+                key={i} 
+                className="border border-zinc-50 dark:border-zinc-900 rounded-sm flex items-center justify-center overflow-hidden bg-zinc-50/10"
+              >
+                {displayItems[i] ? (
+                  <img 
+                    src={displayItems[i]} 
+                    className="w-full h-full object-contain p-1" 
+                    alt={`Layout Item ${i}`}
+                  />
+                ) : (
+                  <div className="text-[8px] text-zinc-200 font-mono flex flex-col items-center gap-1 opacity-40">
+                    <div className="w-4 h-px bg-zinc-200"></div>
+                    SLOT {i + 1}
+                    <div className="w-4 h-px bg-zinc-200"></div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
 
-        {/* Paper Info Overlay */}
-        <div className="absolute -top-10 left-0 text-[10px] font-mono text-zinc-500 flex gap-4 uppercase tracking-widest">
-          <span>{paperSize} {orientation}</span>
-          <span>{gridCount} Items</span>
+          {/* Paper Info Overlay (Only visible in UI, not export) */}
+          <div className="absolute -top-12 left-0 text-[10px] font-bold font-mono text-zinc-400 flex gap-6 uppercase tracking-[0.2em] pointer-events-none">
+            <span className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+              {paperSize} {orientation}
+            </span>
+            <span>{gridCount} Slots</span>
+            <span className="text-indigo-500/50">{arrangementMode}</span>
+          </div>
         </div>
       </div>
+
+      {/* Empty State Overlay */}
+      {selectedIndices.length === 0 && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-100/50 dark:bg-zinc-950/50 backdrop-blur-sm z-10">
+          <div className="p-8 bg-white dark:bg-zinc-900 rounded-3xl shadow-xl border border-zinc-200 dark:border-zinc-800 text-center max-w-xs space-y-4">
+            <div className="h-12 w-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center mx-auto">
+              <ImageIcon className="h-6 w-6 text-indigo-600" />
+            </div>
+            <h3 className="text-lg font-bold">Canvas is Empty</h3>
+            <p className="text-sm text-zinc-500">Select images from your inventory to start building your layout.</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
+function ImageIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+      <circle cx="9" cy="9" r="2"/>
+      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+    </svg>
+  )
+}
