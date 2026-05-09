@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { StudioHeader } from "@/components/studio-header";
+import { SiteHeader } from "@/components/site-header";
 import { StudioCanvas } from "@/components/studio-canvas";
 import { StudioSidebar } from "@/components/studio-sidebar";
 
@@ -17,12 +17,12 @@ export default async function StudioPage() {
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col">
-      <StudioHeader />
-      <main className="flex-1 p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="md:col-span-2">
+      <SiteHeader />
+      <main className="flex-1 p-6 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-screen-2xl mx-auto w-full">
+        <div className="md:col-span-2 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden flex flex-col">
           <StudioCanvas />
         </div>
-        <div>
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden flex flex-col">
           <StudioSidebar />
         </div>
       </main>

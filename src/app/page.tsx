@@ -42,8 +42,8 @@ export default function LandingPage() {
                 Start creating for free
               </Button>
             </Link>
-            <Link href="#how-it-works">
-              <Button size="lg" variant="outline" className="rounded-full px-8 text-base h-14 bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm">
+            <Link href="/how-it-works">
+              <Button size="lg" variant="outline" className="rounded-full px-8 text-base h-14 bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:shadow-md">
                 See how it works
               </Button>
             </Link>
@@ -90,28 +90,7 @@ export default function LandingPage() {
           </div>
         </motion.div>
 
-        <section id="how-it-works" className="py-20">
-          <h2 className="text-3xl font-bold tracking-tight text-center sm:text-4xl">How It Works</h2>
-          <p className="mt-4 text-lg text-center text-muted-foreground">Our platform is designed to be simple and intuitive. Here's a quick overview of how it works.</p>
-          <div className="grid gap-8 mt-12 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="p-6 border rounded-lg">
-              <h3 className="text-lg font-medium">1. Upload Your Artwork</h3>
-              <p className="mt-2 text-sm text-muted-foreground">Upload your artwork, stickers, or photos to our platform. We support a variety of file formats.</p>
-            </div>
-            <div className="p-6 border rounded-lg">
-              <h3 className="text-lg font-medium">2. Arrange Your Layout</h3>
-              <p className="mt-2 text-sm text-muted-foreground">Our smart engine will automatically arrange your artwork onto any paper size. You can also manually adjust the layout.</p>
-            </div>
-            <div className="p-6 border rounded-lg">
-              <h3 className="text-lg font-medium">3. Export Print-Ready PDFs</h3>
-              <p className="mt-2 text-sm text-muted-foreground">Export your layouts as print-ready PDFs. We'll make sure they're ready for printing.</p>
-            </div>
-            <div className="p-6 border rounded-lg">
-              <h3 className="text-lg font-medium">4. Manage Your Projects</h3>
-              <p className="mt-2 text-sm text-muted-foreground">Keep track of all your projects in one place. You can also share your projects with others.</p>
-            </div>
-          </div>
-        </section>
+
       </main>
 
       {/* Simple Footer */}
