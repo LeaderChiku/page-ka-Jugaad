@@ -37,7 +37,9 @@ export async function updateSession(request: NextRequest) {
 
   // Route protection logic
   const isAuthRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/signup')
-  const isPublicRoute = request.nextUrl.pathname === '/' || request.nextUrl.pathname.startsWith('/auth')
+  const isPublicRoute = request.nextUrl.pathname === '/' || 
+                        request.nextUrl.pathname.startsWith('/auth') || 
+                        request.nextUrl.pathname.startsWith('/how-it-works')
   
   if (!user && !isAuthRoute && !isPublicRoute) {
     // Redirect unauthenticated users to login page if they try to access protected routes

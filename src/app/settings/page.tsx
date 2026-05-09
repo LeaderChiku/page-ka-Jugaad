@@ -28,7 +28,7 @@ export default async function SettingsPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-8">
-            <UserSettings />
+            <UserSettings user={user} />
             <SubscriptionSettings />
           </div>
           <div>
