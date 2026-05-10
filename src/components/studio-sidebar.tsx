@@ -22,8 +22,10 @@ export function StudioSidebar() {
     gridCount, setGridCount,
     margin, setMargin,
     spacing, setSpacing,
-    showOutlines, setShowOutlines
+    showOutlines, setShowOutlines,
+    isPositioningUnlocked, setIsPositioningUnlocked
   } = useStudioStore()
+
 
 
   return (
@@ -202,7 +204,32 @@ export function StudioSidebar() {
               </div>
             </div>
           </div>
+
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Image Positioning</Label>
+                <p className="text-[9px] text-zinc-500">Drag/Zoom individual stickers</p>
+              </div>
+              <Button 
+                size="sm"
+                variant={isPositioningUnlocked ? 'default' : 'outline'}
+                className={isPositioningUnlocked 
+                  ? "h-9 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white border-none shadow-md shadow-amber-500/20" 
+                  : "h-9 px-4 rounded-xl border-zinc-200 dark:border-zinc-800 text-zinc-600"}
+                onClick={() => setIsPositioningUnlocked(!isPositioningUnlocked)}
+              >
+                {isPositioningUnlocked ? (
+                  <Zap className="mr-2 h-3.5 w-3.5" />
+                ) : (
+                  <Zap className="mr-2 h-3.5 w-3.5 opacity-40" />
+                )}
+                {isPositioningUnlocked ? 'Unlocked' : 'Locked'}
+              </Button>
+            </div>
+          </div>
         </div>
+
 
       </div>
     </div>

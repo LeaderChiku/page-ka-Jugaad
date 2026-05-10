@@ -15,25 +15,29 @@ interface StudioState {
   margin: number
   spacing: number
   showOutlines: boolean
+  isPositioningUnlocked: boolean
+  imageTransforms: Record<string, { zoom: number, x: number, y: number }>
   randomLayoutData: { id: string, url: string, x: number, y: number, rotation: number, scale: number }[] | null
   
   // Actions
   addImage: (file: DriveFile) => void
   removeImage: (id: string) => void
   toggleSelection: (id: string) => void
+  updateImageTransform: (id: string, transform: Partial<{ zoom: number, x: number, y: number }>) => void
   setPaperSize: (size: PaperSize) => void
+
   setOrientation: (orientation: Orientation) => void
   setArrangementMode: (mode: ArrangementMode) => void
   setGridCount: (count: number) => void
   setMargin: (margin: number) => void
   setSpacing: (spacing: number) => void
   setShowOutlines: (show: boolean) => void
+  setIsPositioningUnlocked: (unlocked: boolean) => void
   clearInventory: () => void
   clearSelection: () => void
   generateRandomLayout: (count: number) => void
   clearRandomLayout: () => void
 }
-
 
 export const useStudioStore = create<StudioState>((set) => ({
   inventory: [],
@@ -45,6 +49,8 @@ export const useStudioStore = create<StudioState>((set) => ({
   margin: 20,
   spacing: 10,
   showOutlines: true,
+  isPositioningUnlocked: false,
+  imageTransforms: {},
   randomLayoutData: null,
 
   addImage: (file) => set((state) => ({ inventory: [...state.inventory, file] })),
@@ -53,10 +59,15 @@ export const useStudioStore = create<StudioState>((set) => ({
     const newInventory = state.inventory.filter((item) => item.id !== id);
     // When an item is removed from inventory, we must also remove it from selection 
     const newSelectedIds = state.selectedIds.filter((selectedId) => selectedId !== id);
+    
+    // Also cleanup transforms
+    const newTransforms = { ...state.imageTransforms };
+    delete newTransforms[id];
       
     return { 
       inventory: newInventory,
-      selectedIds: newSelectedIds
+      selectedIds: newSelectedIds,
+      imageTransforms: newTransforms
     };
   }),
 
@@ -73,6 +84,16 @@ export const useStudioStore = create<StudioState>((set) => ({
     }
   }),
 
+  updateImageTransform: (id, transform) => set((state) => {
+    const current = state.imageTransforms[id] || { zoom: 1, x: 0, y: 0 };
+    return {
+      imageTransforms: {
+        ...state.imageTransforms,
+        [id]: { ...current, ...transform }
+      }
+    };
+  }),
+
   setPaperSize: (paperSize) => set({ paperSize }),
   setOrientation: (orientation) => set({ orientation }),
   setArrangementMode: (arrangementMode) => set({ arrangementMode }),
@@ -80,7 +101,8 @@ export const useStudioStore = create<StudioState>((set) => ({
   setMargin: (margin) => set({ margin }),
   setSpacing: (spacing) => set({ spacing }),
   setShowOutlines: (showOutlines) => set({ showOutlines }),
-  clearInventory: () => set({ inventory: [], selectedIds: [], randomLayoutData: null }),
+  setIsPositioningUnlocked: (isPositioningUnlocked) => set({ isPositioningUnlocked }),
+  clearInventory: () => set({ inventory: [], selectedIds: [], imageTransforms: {}, randomLayoutData: null }),
   clearSelection: () => set({ selectedIds: [] }),
 
   generateRandomLayout: (count) => set((state) => {
@@ -103,4 +125,5 @@ export const useStudioStore = create<StudioState>((set) => ({
   }),
   clearRandomLayout: () => set({ randomLayoutData: null }),
 }))
+
 

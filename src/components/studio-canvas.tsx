@@ -19,12 +19,17 @@ export function StudioCanvas() {
     paperSize, 
     orientation, 
     arrangementMode,
-    gridCount, 
+    gridCount,
     margin, 
     spacing,
+
     showOutlines,
+    isPositioningUnlocked,
+    imageTransforms,
+    updateImageTransform,
     randomLayoutData 
   } = useStudioStore()
+
 
 
   const ratio = PAPER_RATIOS[paperSize]
@@ -40,28 +45,27 @@ export function StudioCanvas() {
 
   // Generate the items to display based on arrangement mode
   const displayItems = React.useMemo(() => {
-    // Map selected IDs to their corresponding inventory thumbnail URLs
+    // Map selected IDs to their corresponding inventory metadata
     const baseItems = selectedIds
-      .map(id => inventory.find(item => item.id === id)?.thumbnailLink)
-      .filter(Boolean) as string[]
+      .map(id => {
+        const item = inventory.find(f => f.id === id)
+        return item ? { id: item.id, url: item.thumbnailLink } : null
+      })
+      .filter(Boolean) as { id: string, url: string }[]
 
     if (baseItems.length === 0) return []
 
-    let result: string[] = []
+    let result: { id: string, url: string }[] = []
 
     switch (arrangementMode) {
       case 'repeat':
-        // Professional rotating repeat pattern
-        const rowLength = cols
         for (let i = 0; i < gridCount; i++) {
-          const rowIndex = Math.floor(i / rowLength)
-          // Rotate start index each row: (i + rowIndex) % baseItems.length
+          const rowIndex = Math.floor(i / cols)
           result.push(baseItems[(i + rowIndex) % baseItems.length])
         }
         break
 
       case 'smart-balanced':
-        // Balanced distribution (centered if fewer items than slots)
         const totalItems = baseItems.length
         if (totalItems < gridCount && totalItems > 0) {
            const startSlot = Math.floor((gridCount - totalItems) / 2)
@@ -69,7 +73,7 @@ export function StudioCanvas() {
              if (i >= startSlot && i < startSlot + totalItems) {
                 result.push(baseItems[i - startSlot])
              } else {
-                result.push("")
+                result.push({ id: "", url: "" })
              }
            }
         } else {
@@ -81,12 +85,11 @@ export function StudioCanvas() {
 
       case 'sequential':
       default:
-        // Fill top slots only in exact order
         for (let i = 0; i < gridCount; i++) {
           if (i < baseItems.length) {
             result.push(baseItems[i])
           } else {
-            result.push("") // Empty slots
+            result.push({ id: "", url: "" })
           }
         }
         break
@@ -94,6 +97,54 @@ export function StudioCanvas() {
 
     return result
   }, [inventory, selectedIds, arrangementMode, gridCount, cols])
+
+
+  const rows = Math.ceil(gridCount / cols)
+
+  // Advanced Positioning Handlers
+  const [draggingId, setDraggingId] = React.useState<string | null>(null)
+  const [lastPos, setLastPos] = React.useState({ x: 0, y: 0 })
+
+  const handleWheel = (e: React.WheelEvent, id: string) => {
+    if (!isPositioningUnlocked || !id) return
+    e.preventDefault()
+    e.stopPropagation()
+    const transform = imageTransforms[id] || { zoom: 1, x: 0, y: 0 }
+    const delta = e.deltaY > 0 ? -0.1 : 0.1
+    const newZoom = Math.max(0.1, Math.min(10, transform.zoom + delta))
+    updateImageTransform(id, { zoom: newZoom })
+  }
+
+  const handleMouseDown = (e: React.MouseEvent, id: string) => {
+    if (!isPositioningUnlocked || !id) return
+    setDraggingId(id)
+    setLastPos({ x: e.clientX, y: e.clientY })
+  }
+
+  React.useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!draggingId) return
+      const dx = e.clientX - lastPos.x
+      const dy = e.clientY - lastPos.y
+      const transform = imageTransforms[draggingId] || { zoom: 1, x: 0, y: 0 }
+      updateImageTransform(draggingId, { 
+        x: transform.x + dx, 
+        y: transform.y + dy 
+      })
+      setLastPos({ x: e.clientX, y: e.clientY })
+    }
+
+    const handleMouseUp = () => setDraggingId(null)
+
+    if (draggingId) {
+      window.addEventListener('mousemove', handleMouseMove)
+      window.addEventListener('mouseup', handleMouseUp)
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [draggingId, lastPos, imageTransforms, updateImageTransform])
 
   return (
     <div className="flex-1 bg-zinc-100 dark:bg-zinc-950 flex items-center justify-center p-4 lg:p-12 overflow-auto custom-scrollbar relative">
@@ -143,48 +194,64 @@ export function StudioCanvas() {
               </div>
             ) : (
               <div 
-                className="grid h-full w-full"
+                className="grid h-full w-full align-content-start"
                 style={{
                   gridTemplateColumns: `repeat(${cols}, 1fr)`,
+                  gridTemplateRows: `repeat(${rows}, 1fr)`,
                   gap: `${spacing}px`,
                 }}
               >
-                {Array.from({ length: gridCount }).map((_, i) => (
-                  <div 
-                    key={i} 
-                    className={cn(
-                      "rounded-sm flex items-center justify-center overflow-hidden bg-zinc-50/10 transition-colors",
-                      showOutlines ? "border border-zinc-100 dark:border-zinc-800" : "border border-transparent"
-                    )}
-                  >
-                    {displayItems[i] ? (
-                      <img 
-                        src={displayItems[i]} 
-                        className="block object-contain" 
-                        alt={`Layout Item ${i}`}
-                        style={{ 
-                          maxWidth: '100%', 
-                          maxHeight: '100%', 
-                          width: 'auto', 
-                          height: 'auto',
-                          padding: '2px'
-                        }}
-                      />
-                    ) : (
-
-                      showOutlines && (
-                        <div className="text-[8px] font-mono flex flex-col items-center gap-1 opacity-40 text-zinc-200">
-                          <div className="w-4 h-px bg-zinc-200"></div>
-                          SLOT {i + 1}
-                          <div className="w-4 h-px bg-zinc-200"></div>
+                {Array.from({ length: gridCount }).map((_, i) => {
+                  const item = displayItems[i]
+                  const transform = item?.id ? (imageTransforms[item.id] || { zoom: 1, x: 0, y: 0 }) : { zoom: 1, x: 0, y: 0 }
+                  
+                  return (
+                    <div 
+                      key={i} 
+                      className={cn(
+                        "rounded-sm flex items-center justify-center overflow-hidden bg-zinc-50/10 transition-colors relative group",
+                        showOutlines ? "border border-zinc-100 dark:border-zinc-800" : "border border-transparent",
+                        isPositioningUnlocked && item?.id && "cursor-move ring-1 ring-inset ring-amber-500/20 hover:ring-amber-500/50"
+                      )}
+                      onWheel={(e) => item?.id && handleWheel(e, item.id)}
+                      onMouseDown={(e) => item?.id && handleMouseDown(e, item.id)}
+                    >
+                      {item?.url ? (
+                        <div 
+                          className="w-full h-full flex items-center justify-center transition-transform duration-75"
+                          style={{
+                            transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.zoom})`,
+                          }}
+                        >
+                          <img 
+                            src={item.url} 
+                            className="block object-contain pointer-events-none select-none" 
+                            alt={`Layout Item ${i}`}
+                            style={{ 
+                              maxWidth: '100%', 
+                              maxHeight: '100%', 
+                              width: 'auto', 
+                              height: 'auto',
+                              padding: '2px'
+                            }}
+                          />
                         </div>
-                      )
-                    )}
-                  </div>
-                ))}
+                      ) : (
+                        showOutlines && (
+                          <div className="text-[8px] font-mono flex flex-col items-center gap-1 opacity-40 text-zinc-200">
+                            <div className="w-4 h-px bg-zinc-200"></div>
+                            SLOT {i + 1}
+                            <div className="w-4 h-px bg-zinc-200"></div>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  )
+                })}
 
               </div>
             )}
+
 
           {/* Paper Info Overlay (Only visible in UI, not export) */}
           <div className="absolute -top-16 left-0 right-0 flex items-end justify-between text-zinc-400 font-bold font-mono tracking-[0.2em] pointer-events-none select-none px-2">
