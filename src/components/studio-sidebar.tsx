@@ -29,12 +29,13 @@ export function StudioSidebar() {
 
 
   return (
-    <div className="w-80 bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 flex flex-col h-full">
+    <div className="w-80 bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 flex flex-col">
       <div className="p-6 border-b border-zinc-200 dark:border-zinc-800">
         <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Layout Settings</h2>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+      <div className="p-6 space-y-8">
+
         {/* Paper Size */}
         <div className="space-y-3">
           <Label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Paper Size</Label>

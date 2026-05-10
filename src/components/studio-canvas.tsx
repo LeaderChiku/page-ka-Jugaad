@@ -147,7 +147,8 @@ export function StudioCanvas() {
   }, [draggingId, lastPos, imageTransforms, updateImageTransform])
 
   return (
-    <div className="flex-1 bg-zinc-100 dark:bg-zinc-950 flex items-center justify-center p-4 lg:p-12 overflow-auto custom-scrollbar relative">
+    <div className="flex-1 bg-zinc-100 dark:bg-zinc-950 flex items-center justify-center p-4 lg:p-12 relative">
+
       {/* Zoom Container to make full paper visible */}
       <div className="transform scale-[0.65] lg:scale-[0.8] transition-transform origin-center">
         <div 
