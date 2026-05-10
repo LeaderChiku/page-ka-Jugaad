@@ -120,12 +120,26 @@ export function StudioCanvas() {
                       top: `${item.y}%`,
                       transform: `translate(-50%, -50%) rotate(${item.rotation}deg) scale(${item.scale})`,
                       width: '100px',
-                      height: '100px'
+                      height: '100px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
                     }}
                   >
-                    <img src={item.url} className="w-full h-full object-contain drop-shadow-md" alt="Random Item" />
+                    <img 
+                      src={item.url} 
+                      className="block object-contain drop-shadow-md" 
+                      alt="Random Item" 
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '100%',
+                        width: 'auto',
+                        height: 'auto'
+                      }}
+                    />
                   </div>
                 ))}
+
               </div>
             ) : (
               <div 
@@ -146,11 +160,18 @@ export function StudioCanvas() {
                     {displayItems[i] ? (
                       <img 
                         src={displayItems[i]} 
-                        className="max-w-full max-h-full object-contain" 
+                        className="block object-contain" 
                         alt={`Layout Item ${i}`}
-                        style={{ padding: '2px' }}
+                        style={{ 
+                          maxWidth: '100%', 
+                          maxHeight: '100%', 
+                          width: 'auto', 
+                          height: 'auto',
+                          padding: '2px'
+                        }}
                       />
                     ) : (
+
                       showOutlines && (
                         <div className="text-[8px] font-mono flex flex-col items-center gap-1 opacity-40 text-zinc-200">
                           <div className="w-4 h-px bg-zinc-200"></div>
