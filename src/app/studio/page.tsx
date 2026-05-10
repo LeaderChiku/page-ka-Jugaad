@@ -78,17 +78,18 @@ export default function StudioPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col">
+    <div className="h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col overflow-hidden">
       <SiteHeader />
       
-      <main className="flex-1 flex relative">
+      <main className="flex-1 flex overflow-hidden relative">
         {/* Left Inventory Sidebar */}
-        <div className="w-72 hidden lg:block border-r border-zinc-200 dark:border-zinc-800">
+        <div className="w-72 hidden lg:block h-full">
           <StudioInventory />
         </div>
 
         {/* Center Canvas Area */}
-        <div className="flex-1 flex flex-col relative bg-zinc-100 dark:bg-zinc-950/50">
+        <div className="flex-1 flex flex-col h-full relative overflow-hidden bg-zinc-100 dark:bg-zinc-950/50">
+
 
           <StudioCanvas />
           

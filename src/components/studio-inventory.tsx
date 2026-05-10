@@ -133,7 +133,7 @@ export function StudioInventory() {
   )
 
   return (
-    <div className="bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800">
+    <div className="flex flex-col h-full bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800">
       <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Inventory</h2>
@@ -172,7 +172,8 @@ export function StudioInventory() {
         />
       </div>
 
-      <div className="p-4">
+      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+
 
         {inventory.length === 0 && !loading ? (
           <div className="flex flex-col items-center justify-center h-40 text-center space-y-2 text-zinc-500">
