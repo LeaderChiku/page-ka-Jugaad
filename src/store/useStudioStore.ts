@@ -14,6 +14,7 @@ interface StudioState {
   gridCount: number
   margin: number
   spacing: number
+  showOutlines: boolean
   randomLayoutData: { id: string, url: string, x: number, y: number, rotation: number, scale: number }[] | null
   
   // Actions
@@ -26,11 +27,13 @@ interface StudioState {
   setGridCount: (count: number) => void
   setMargin: (margin: number) => void
   setSpacing: (spacing: number) => void
+  setShowOutlines: (show: boolean) => void
   clearInventory: () => void
   clearSelection: () => void
   generateRandomLayout: (count: number) => void
   clearRandomLayout: () => void
 }
+
 
 export const useStudioStore = create<StudioState>((set) => ({
   inventory: [],
@@ -41,6 +44,7 @@ export const useStudioStore = create<StudioState>((set) => ({
   gridCount: 4,
   margin: 20,
   spacing: 10,
+  showOutlines: true,
   randomLayoutData: null,
 
   addImage: (file) => set((state) => ({ inventory: [...state.inventory, file] })),
@@ -75,8 +79,10 @@ export const useStudioStore = create<StudioState>((set) => ({
   setGridCount: (gridCount) => set({ gridCount }),
   setMargin: (margin) => set({ margin }),
   setSpacing: (spacing) => set({ spacing }),
+  setShowOutlines: (showOutlines) => set({ showOutlines }),
   clearInventory: () => set({ inventory: [], selectedIds: [], randomLayoutData: null }),
   clearSelection: () => set({ selectedIds: [] }),
+
   generateRandomLayout: (count) => set((state) => {
     if (state.inventory.length === 0) return state;
     

@@ -22,8 +22,10 @@ export function StudioCanvas() {
     gridCount, 
     margin, 
     spacing,
+    showOutlines,
     randomLayoutData 
   } = useStudioStore()
+
 
   const ratio = PAPER_RATIOS[paperSize]
   const isPortrait = orientation === 'portrait'
@@ -136,23 +138,30 @@ export function StudioCanvas() {
                 {Array.from({ length: gridCount }).map((_, i) => (
                   <div 
                     key={i} 
-                    className="border border-zinc-50 dark:border-zinc-900 rounded-sm flex items-center justify-center overflow-hidden bg-zinc-50/10"
+                    className={cn(
+                      "rounded-sm flex items-center justify-center overflow-hidden bg-zinc-50/10 transition-colors",
+                      showOutlines ? "border border-zinc-100 dark:border-zinc-800" : "border border-transparent"
+                    )}
                   >
                     {displayItems[i] ? (
                       <img 
                         src={displayItems[i]} 
-                        className="w-full h-full object-contain p-1" 
+                        className="max-w-full max-h-full object-contain" 
                         alt={`Layout Item ${i}`}
+                        style={{ padding: '2px' }}
                       />
                     ) : (
-                      <div className="text-[8px] text-zinc-200 font-mono flex flex-col items-center gap-1 opacity-40">
-                        <div className="w-4 h-px bg-zinc-200"></div>
-                        SLOT {i + 1}
-                        <div className="w-4 h-px bg-zinc-200"></div>
-                      </div>
+                      showOutlines && (
+                        <div className="text-[8px] font-mono flex flex-col items-center gap-1 opacity-40 text-zinc-200">
+                          <div className="w-4 h-px bg-zinc-200"></div>
+                          SLOT {i + 1}
+                          <div className="w-4 h-px bg-zinc-200"></div>
+                        </div>
+                      )
                     )}
                   </div>
                 ))}
+
               </div>
             )}
 

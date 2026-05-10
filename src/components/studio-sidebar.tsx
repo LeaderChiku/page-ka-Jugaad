@@ -21,8 +21,10 @@ export function StudioSidebar() {
     arrangementMode, setArrangementMode,
     gridCount, setGridCount,
     margin, setMargin,
-    spacing, setSpacing
+    spacing, setSpacing,
+    showOutlines, setShowOutlines
   } = useStudioStore()
+
 
   return (
     <div className="w-80 bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 flex flex-col h-full">
@@ -176,7 +178,32 @@ export function StudioSidebar() {
               className="py-2"
             />
           </div>
+
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Show Slot Outlines</Label>
+              <div className="flex p-1 bg-zinc-50 dark:bg-zinc-950 rounded-lg">
+                <Button 
+                  size="sm"
+                  variant={showOutlines ? 'default' : 'ghost'}
+                  className={showOutlines ? "h-7 px-3 text-[10px] rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm hover:bg-white dark:hover:bg-zinc-800" : "h-7 px-3 text-[10px] rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900"}
+                  onClick={() => setShowOutlines(true)}
+                >
+                  On
+                </Button>
+                <Button 
+                  size="sm"
+                  variant={!showOutlines ? 'default' : 'ghost'}
+                  className={!showOutlines ? "h-7 px-3 text-[10px] rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm hover:bg-white dark:hover:bg-zinc-800" : "h-7 px-3 text-[10px] rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900"}
+                  onClick={() => setShowOutlines(false)}
+                >
+                  Off
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
+
       </div>
     </div>
   )
