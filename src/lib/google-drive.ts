@@ -26,10 +26,15 @@ export const MAX_FILE_SIZE = 25 * 1024 * 1024 // 25MB
  */
 async function getGoogleToken() {
   const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { session }, error } = await supabase.auth.getSession()
   
+  if (error) {
+    console.error('Supabase session error:', error)
+    return null
+  }
+
   if (!session?.provider_token) {
-    console.error('No Google provider token found in session. Ensure drive.file scope was requested.')
+    console.warn('No Google provider token found. User might need to re-log in with Google.')
     return null
   }
   
@@ -49,8 +54,14 @@ export async function getOrCreateAppFolder(): Promise<string | null> {
     const searchRes = await fetch(searchUrl, {
       headers: { Authorization: `Bearer ${token}` }
     })
-    const searchData = await searchRes.json()
+    
+    if (!searchRes.ok) {
+      const errData = await searchRes.json()
+      console.error('Drive Search Error:', errData)
+      return null
+    }
 
+    const searchData = await searchRes.json()
     if (searchData.files && searchData.files.length > 0) {
       return searchData.files[0].id
     }
@@ -68,11 +79,14 @@ export async function getOrCreateAppFolder(): Promise<string | null> {
         description: 'Auto-generated folder for PageKaJugaad application assets'
       })
     })
-    const createData = await createRes.json()
-    if (createData.error) {
-      console.error('Drive Folder Creation Error:', createData.error)
+
+    if (!createRes.ok) {
+      const errData = await createRes.json()
+      console.error('Drive Folder Creation Error:', errData)
       return null
     }
+
+    const createData = await createRes.json()
     return createData.id
   } catch (error) {
     console.error('Error getting/creating Drive folder:', error)
@@ -85,19 +99,28 @@ export async function getOrCreateAppFolder(): Promise<string | null> {
  */
 export async function fetchDriveInventory(): Promise<DriveFile[]> {
   const token = await getGoogleToken()
-  if (!token) return []
+  if (!token) throw new Error('AUTH_EXPIRED')
 
   const folderId = await getOrCreateAppFolder()
-  if (!folderId) return []
+  if (!folderId) throw new Error('FOLDER_NOT_FOUND')
 
   try {
     const listUrl = `https://www.googleapis.com/drive/v3/files?q='${folderId}' in parents and trashed=false&fields=files(id,name,thumbnailLink,webContentLink,mimeType)`
     const res = await fetch(listUrl, {
       headers: { Authorization: `Bearer ${token}` }
     })
+    
+    if (!res.ok) {
+      if (res.status === 401) throw new Error('AUTH_EXPIRED')
+      const errData = await res.json()
+      console.error('Drive List Error:', errData)
+      return []
+    }
+
     const data = await res.json()
     return data.files || []
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === 'AUTH_EXPIRED') throw error
     console.error('Error fetching Drive inventory:', error)
     return []
   }
@@ -143,6 +166,12 @@ export async function uploadToDrive(file: File | Blob, fileName: string): Promis
       body: formData
     })
 
+    if (!res.ok) {
+      const errData = await res.json()
+      console.error('Drive Upload API Error:', errData)
+      return null
+    }
+
     const data = await res.json()
     return data.id
   } catch (error) {
@@ -163,9 +192,17 @@ export async function deleteFromDrive(fileId: string): Promise<boolean> {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` }
     })
+    
+    if (!res.ok) {
+      const errData = await res.json()
+      console.error('Drive Delete Error:', errData)
+      return false
+    }
+
     return res.status === 204
   } catch (error) {
     console.error('Error deleting from Drive:', error)
     return false
   }
 }
+

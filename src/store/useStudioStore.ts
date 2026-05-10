@@ -7,7 +7,7 @@ export type ArrangementMode = 'sequential' | 'repeat' | 'smart-balanced'
 
 interface StudioState {
   inventory: DriveFile[]
-  selectedIndices: number[] // Indices of inventory items in selection order
+  selectedIds: string[] // IDs of inventory items in selection order
   paperSize: PaperSize
   orientation: Orientation
   arrangementMode: ArrangementMode
@@ -18,8 +18,8 @@ interface StudioState {
   
   // Actions
   addImage: (file: DriveFile) => void
-  removeImage: (index: number) => void
-  toggleSelection: (index: number) => void
+  removeImage: (id: string) => void
+  toggleSelection: (id: string) => void
   setPaperSize: (size: PaperSize) => void
   setOrientation: (orientation: Orientation) => void
   setArrangementMode: (mode: ArrangementMode) => void
@@ -34,7 +34,7 @@ interface StudioState {
 
 export const useStudioStore = create<StudioState>((set) => ({
   inventory: [],
-  selectedIndices: [],
+  selectedIds: [],
   paperSize: 'A4',
   orientation: 'portrait',
   arrangementMode: 'sequential',
@@ -45,29 +45,26 @@ export const useStudioStore = create<StudioState>((set) => ({
 
   addImage: (file) => set((state) => ({ inventory: [...state.inventory, file] })),
   
-  removeImage: (index) => set((state) => {
-    const newInventory = state.inventory.filter((_, i) => i !== index);
+  removeImage: (id) => set((state) => {
+    const newInventory = state.inventory.filter((item) => item.id !== id);
     // When an item is removed from inventory, we must also remove it from selection 
-    // and adjust other selected indices because the inventory shifted.
-    const newSelectedIndices = state.selectedIndices
-      .filter((i) => i !== index)
-      .map((i) => (i > index ? i - 1 : i));
+    const newSelectedIds = state.selectedIds.filter((selectedId) => selectedId !== id);
       
     return { 
       inventory: newInventory,
-      selectedIndices: newSelectedIndices
+      selectedIds: newSelectedIds
     };
   }),
 
-  toggleSelection: (index) => set((state) => {
-    const isSelected = state.selectedIndices.includes(index);
+  toggleSelection: (id) => set((state) => {
+    const isSelected = state.selectedIds.includes(id);
     if (isSelected) {
       return { 
-        selectedIndices: state.selectedIndices.filter((i) => i !== index) 
+        selectedIds: state.selectedIds.filter((selectedId) => selectedId !== id) 
       };
     } else {
       return { 
-        selectedIndices: [...state.selectedIndices, index] 
+        selectedIds: [...state.selectedIds, id] 
       };
     }
   }),
@@ -78,8 +75,8 @@ export const useStudioStore = create<StudioState>((set) => ({
   setGridCount: (gridCount) => set({ gridCount }),
   setMargin: (margin) => set({ margin }),
   setSpacing: (spacing) => set({ spacing }),
-  clearInventory: () => set({ inventory: [], selectedIndices: [], randomLayoutData: null }),
-  clearSelection: () => set({ selectedIndices: [] }),
+  clearInventory: () => set({ inventory: [], selectedIds: [], randomLayoutData: null }),
+  clearSelection: () => set({ selectedIds: [] }),
   generateRandomLayout: (count) => set((state) => {
     if (state.inventory.length === 0) return state;
     
@@ -100,3 +97,4 @@ export const useStudioStore = create<StudioState>((set) => ({
   }),
   clearRandomLayout: () => set({ randomLayoutData: null }),
 }))
+

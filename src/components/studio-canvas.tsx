@@ -15,7 +15,7 @@ const PAPER_RATIOS: Record<PaperSize, number> = {
 export function StudioCanvas() {
   const { 
     inventory, 
-    selectedIndices,
+    selectedIds,
     paperSize, 
     orientation, 
     arrangementMode,
@@ -38,7 +38,11 @@ export function StudioCanvas() {
 
   // Generate the items to display based on arrangement mode
   const displayItems = React.useMemo(() => {
-    const baseItems = selectedIndices.map(idx => inventory[idx]?.thumbnailLink).filter(Boolean)
+    // Map selected IDs to their corresponding inventory thumbnail URLs
+    const baseItems = selectedIds
+      .map(id => inventory.find(item => item.id === id)?.thumbnailLink)
+      .filter(Boolean) as string[]
+
     if (baseItems.length === 0) return []
 
     let result: string[] = []
@@ -87,7 +91,7 @@ export function StudioCanvas() {
     }
 
     return result
-  }, [inventory, selectedIndices, arrangementMode, gridCount, cols])
+  }, [inventory, selectedIds, arrangementMode, gridCount, cols])
 
   return (
     <div className="flex-1 bg-zinc-100 dark:bg-zinc-950 flex items-center justify-center p-4 lg:p-12 overflow-auto custom-scrollbar relative">
@@ -170,7 +174,7 @@ export function StudioCanvas() {
               <div className="w-24 h-1 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-indigo-500 transition-all duration-500" 
-                  style={{ width: `${(selectedIndices.length / gridCount) * 100}%` }}
+                  style={{ width: `${(selectedIds.length / gridCount) * 100}%` }}
                 ></div>
               </div>
             </div>
@@ -179,7 +183,7 @@ export function StudioCanvas() {
       </div>
 
       {/* Empty State Overlay */}
-      {selectedIndices.length === 0 && (
+      {selectedIds.length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-100/50 dark:bg-zinc-950/50 backdrop-blur-sm z-10">
           <div className="p-8 bg-white dark:bg-zinc-900 rounded-3xl shadow-xl border border-zinc-200 dark:border-zinc-800 text-center max-w-xs space-y-4">
             <div className="h-12 w-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center mx-auto">
@@ -193,6 +197,7 @@ export function StudioCanvas() {
     </div>
   )
 }
+
 
 function ImageIcon({ className }: { className?: string }) {
   return (
