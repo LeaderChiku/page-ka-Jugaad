@@ -218,9 +218,11 @@ export function StudioCanvas() {
                   >
                     <img 
                       src={item.url} 
-                      crossOrigin="anonymous"
                       className="block object-contain drop-shadow-md" 
                       alt="Random Item" 
+                      onError={(e) => {
+                        e.currentTarget.src = "/placeholder.png"
+                      }}
                       style={{
                         maxWidth: '100%',
                         maxHeight: '100%',
@@ -265,9 +267,11 @@ export function StudioCanvas() {
                         >
                           <img 
                             src={item.url} 
-                            crossOrigin="anonymous"
                             className="block object-contain pointer-events-none select-none" 
                             alt={`Layout Item ${i}`}
+                            onError={(e) => {
+                              e.currentTarget.src = "/placeholder.png"
+                            }}
                             style={{ 
                               maxWidth: '100%', 
                               maxHeight: '100%', 

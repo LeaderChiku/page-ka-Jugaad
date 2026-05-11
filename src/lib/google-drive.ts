@@ -34,12 +34,11 @@ export function getDriveImageProxyUrl(fileId: string): string {
  * This token is used to call Google APIs.
  */
 async function getGoogleToken() {
-  console.log('[Google Drive] Fetching token from centralized store...')
   const { useStudioStore } = await import('@/store/useStudioStore')
   const token = useStudioStore.getState().providerToken
   
   if (!token) {
-    console.warn('[Google Drive] No Google provider token found in centralized state.')
+    console.warn('[Google Drive] No provider token in store — auth may not have completed.')
     return null
   }
   
@@ -98,18 +97,16 @@ async function driveRequest(url: string, options: RequestInit = {}, retryCount =
  * Caches the folderId in localStorage and Supabase user_metadata for fast retrieval.
  */
 export async function getOrCreateInventoryFolder(): Promise<string | null> {
-  console.log("[Google Drive] STEP 1: Checking localStorage")
   try {
-    // 1. Check local storage
+    // 1. Fast path: check localStorage
     if (typeof window !== 'undefined') {
       const localFolderId = localStorage.getItem(LOCAL_STORAGE_KEY)
       if (localFolderId) {
-        console.log("[Google Drive] Found in localStorage:", localFolderId)
         return localFolderId
       }
     }
 
-    console.log("[Google Drive] STEP 2: Checking Supabase metadata")
+    console.log("[Google Drive] No folderId cached. Checking Supabase metadata...")
     // 2. Check Supabase user_metadata with a strict 3-second timeout to prevent deadlocks
     const supabase = createClient()
     const userPromise = supabase.auth.getUser()
@@ -124,14 +121,14 @@ export async function getOrCreateInventoryFolder(): Promise<string | null> {
     
     if (user?.user_metadata?.driveFolderId) {
       const metadataFolderId = user.user_metadata.driveFolderId
-      console.log("[Google Drive] Found in Supabase metadata:", metadataFolderId)
+      console.log("[Google Drive] Found folderId in Supabase metadata.")
       if (typeof window !== 'undefined') {
         localStorage.setItem(LOCAL_STORAGE_KEY, metadataFolderId)
       }
       return metadataFolderId
     }
 
-    console.log("[Google Drive] STEP 3: Searching Drive")
+    console.log("[Google Drive] Searching Drive for existing inventory folder...")
     // 3. Search for existing folder in Google Drive
     const searchUrl = `https://www.googleapis.com/drive/v3/files?q=name='${APP_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
     const searchRes = await driveRequest(searchUrl, {
@@ -151,9 +148,8 @@ export async function getOrCreateInventoryFolder(): Promise<string | null> {
       folderId = searchData.files[0].id
       console.log("[Google Drive] Found in Drive Search:", folderId)
     } else {
-      console.log("[Google Drive] STEP 4: Creating folder")
+      console.log("[Google Drive] Folder not found in Drive. Creating...")
       // 4. Create folder if not found
-      console.log('[Google Drive] App folder not found, creating new one...')
       const createRes = await driveRequest('https://www.googleapis.com/drive/v3/files', {
         method: 'POST',
         headers: {
@@ -179,17 +175,11 @@ export async function getOrCreateInventoryFolder(): Promise<string | null> {
     }
 
     if (folderId) {
-      console.log("[Google Drive] STEP 5: Saving metadata")
       // Save the discovered/created folderId permanently
       if (typeof window !== 'undefined') {
         localStorage.setItem(LOCAL_STORAGE_KEY, folderId)
       }
-      
-      // TEMPORARILY DISABLED TO PREVENT INFINITE AUTH LOOPS
-      // await supabase.auth.updateUser({
-      //   data: { driveFolderId: folderId }
-      // })
-      console.log("[Google Drive] Skipping Supabase updateUser to prevent auth loop.")
+      console.log("[Google Drive] folderId cached. Skipping supabase.auth.updateUser to prevent auth loops.")
       return folderId
     }
 

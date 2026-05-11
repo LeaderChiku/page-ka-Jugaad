@@ -231,7 +231,14 @@ export function StudioInventory() {
                       : "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 hover:border-indigo-300"
                   )}
                 >
-                  <img src={getDriveImageProxyUrl(img.id)} alt={img.name} className="object-cover w-full h-full" />
+                  <img 
+                    src={getDriveImageProxyUrl(img.id)} 
+                    alt={img.name} 
+                    className="object-cover w-full h-full" 
+                    onError={(e) => {
+                      e.currentTarget.src = "/placeholder.png"
+                    }}
+                  />
                   
                   {/* Selection Badge */}
                   {isSelected && (

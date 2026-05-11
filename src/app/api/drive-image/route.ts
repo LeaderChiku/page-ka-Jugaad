@@ -22,52 +22,38 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Try high-res thumbnail first for best quality, fallback to uc?export=view
-    const targetUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w2000`
+    // Use the official REST API endpoint to securely fetch raw file bytes (bypasses all redirects)
+    const targetUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`
     
-    console.log(`[API drive-image] Proxifying request for fileId: ${fileId}`)
+    console.log(`[API drive-image] Fetching from: ${targetUrl}`)
     const driveRes = await fetch(targetUrl, {
       headers: {
         Authorization: `Bearer ${token}`
       },
-      signal: AbortSignal.timeout(10000)
+      signal: AbortSignal.timeout(15000)
     })
 
+    console.log(`[API drive-image] Response Status: ${driveRes.status} ${driveRes.statusText}`)
+    const contentType = driveRes.headers.get('Content-Type')
+    console.log(`[API drive-image] Content-Type: ${contentType}`)
+
     if (!driveRes.ok) {
-      const statusText = driveRes.statusText
-      console.error(`[API drive-image] Drive fetch failed: ${driveRes.status} ${statusText}`)
-      
-      // Fallback mechanism in case thumbnail endpoint fails for some specific file types
-      console.log(`[API drive-image] Falling back to uc endpoint...`)
-      const fallbackUrl = `https://drive.google.com/uc?export=view&id=${fileId}`
-      const fallbackRes = await fetch(fallbackUrl, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
-        signal: AbortSignal.timeout(10000)
-      })
-      
-      if (!fallbackRes.ok) {
-         return NextResponse.json({ error: 'Failed to fetch image from Google Drive' }, { status: fallbackRes.status })
-      }
-      
-      const fallbackBuffer = await fallbackRes.arrayBuffer()
-      return new NextResponse(fallbackBuffer, {
-        status: 200,
-        headers: {
-          'Content-Type': fallbackRes.headers.get('Content-Type') || 'image/jpeg',
-          'Cache-Control': 'public, max-age=31536000, immutable',
-        }
-      })
+      const errText = await driveRes.text()
+      console.error(`[API drive-image] Drive fetch failed. Body:`, errText.substring(0, 200))
+      return NextResponse.json({ error: 'Failed to fetch image from Google Drive', details: errText.substring(0, 100) }, { status: driveRes.status })
+    }
+
+    if (contentType?.includes('text/html')) {
+      console.error(`[API drive-image] Warning: Received HTML instead of image data!`)
+      return NextResponse.json({ error: 'Received HTML instead of image data' }, { status: 502 })
     }
 
     const buffer = await driveRes.arrayBuffer()
-    const contentType = driveRes.headers.get('Content-Type') || 'image/jpeg'
 
     return new NextResponse(buffer, {
       status: 200,
       headers: {
-        'Content-Type': contentType,
+        'Content-Type': contentType ?? 'image/jpeg',
         // Cache aggressively since Drive files don't change IDs
         'Cache-Control': 'public, max-age=31536000, immutable',
       }

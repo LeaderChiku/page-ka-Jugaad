@@ -1,8 +1,6 @@
 "use client"
 
 import * as React from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 import { SiteHeader } from "@/components/site-header"
 import { StudioCanvas } from "@/components/studio-canvas"
 import { StudioSidebar } from "@/components/studio-sidebar"
@@ -15,7 +13,6 @@ import { useStudioStore } from "@/store/useStudioStore"
 import { toast } from "sonner"
 
 export default function StudioPage() {
-  const router = useRouter()
   const [exporting, setExporting] = React.useState(false)
   const { paperSize, orientation } = useStudioStore()
 
@@ -24,6 +21,26 @@ export default function StudioPage() {
     if (!element) return
 
     setExporting(true)
+    
+    // TEMPORARY SANITIZATION:
+    // Strip Tailwind v4 classes that use oklch/lab colors which crash html2canvas
+    const slots = element.querySelectorAll('.sticker-slot')
+    const originalStyles: { el: HTMLElement, className: string, bg: string, border: string }[] = []
+    
+    slots.forEach(slot => {
+      const el = slot as HTMLElement
+      originalStyles.push({ 
+        el, 
+        className: el.className, 
+        bg: el.style.backgroundColor, 
+        border: el.style.borderColor 
+      })
+      // Strip classes but maintain essential layout structure
+      el.className = 'sticker-slot'
+      el.style.backgroundColor = 'rgba(250, 250, 250, 0.1)'
+      el.style.borderColor = 'transparent'
+    })
+
     try {
       // Create a clean version for export (optional: remove UI-only elements if any)
       const canvas = await html2canvas(element, {
@@ -55,6 +72,12 @@ export default function StudioPage() {
         description: "Please try again."
       })
     } finally {
+      // Restore original UI styles immediately
+      originalStyles.forEach(({ el, className, bg, border }) => {
+        el.className = className
+        el.style.backgroundColor = bg
+        el.style.borderColor = border
+      })
       setExporting(false)
     }
   }

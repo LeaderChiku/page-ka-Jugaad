@@ -11,12 +11,16 @@ import { useRouter, usePathname } from "next/navigation"
  * syncing Google Drive inventory when a user is logged in.
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const supabase = createClient()
+  const supabase = React.useMemo(() => createClient(), [])
   const syncInventory = useStudioStore((state) => state.syncInventory)
   const clearInventory = useStudioStore((state) => state.clearInventory)
   const setProviderToken = useStudioStore((state) => state.setProviderToken)
   const router = useRouter()
   const pathname = usePathname()
+  const pathnameRef = React.useRef(pathname)
+
+  // Keep pathnameRef in sync so the auth listener can read current path without being in the dep array
+  React.useEffect(() => { pathnameRef.current = pathname }, [pathname])
 
   // Initialize and listen to auth state changes
   React.useEffect(() => {
@@ -41,7 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } else {
           console.warn(`[AuthProvider] ${event} received but no session found.`)
-          if (event === 'INITIAL_SESSION' && pathname !== '/login' && pathname !== '/signup' && pathname !== '/') {
+        if (event === 'INITIAL_SESSION' && !session && pathnameRef.current !== '/login' && pathnameRef.current !== '/signup' && pathnameRef.current !== '/') {
             console.log('[AuthProvider] Unauthenticated INITIAL_SESSION on protected route. Redirecting...')
             router.push('/login')
           }
@@ -54,7 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearInventory()
         
         // Refresh only if on a protected route to clear data from UI
-        if (pathname !== '/login' && pathname !== '/signup' && pathname !== '/') {
+        if (pathnameRef.current !== '/login' && pathnameRef.current !== '/signup' && pathnameRef.current !== '/') {
           console.log('[AuthProvider] Redirecting or refreshing from protected route...')
           router.push('/login')
         }
@@ -65,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mounted = false
       subscription.unsubscribe()
     }
-  }, [supabase, syncInventory, clearInventory, router, pathname])
+  }, [supabase, syncInventory, clearInventory, setProviderToken, router])
 
   return <>{children}</>
 }
