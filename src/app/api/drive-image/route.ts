@@ -11,11 +11,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing fileId' }, { status: 400 })
     }
 
-    // Securely retrieve the provider_token from the server-side session
+    // Securely retrieve the provider_token from the server-side session or user metadata
     const supabase = await createClient()
     const { data: { session }, error } = await supabase.auth.getSession()
 
-    const token = session?.provider_token
+    const token = session?.provider_token || session?.user?.user_metadata?.google_provider_token
 
     if (error || !token) {
       console.error('[API drive-image] Unauthorized or missing provider_token')

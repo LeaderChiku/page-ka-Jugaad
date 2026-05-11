@@ -9,9 +9,22 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     
-    if (!error) {
+    if (!error && data.session) {
+      const { provider_token, provider_refresh_token } = data.session
+      
+      // Persist provider tokens to user_metadata so they are available in the session 
+      // after redirect and refresh (since Supabase doesn't store them in cookies by default)
+      if (provider_token) {
+        await supabase.auth.updateUser({
+          data: {
+            google_provider_token: provider_token,
+            google_refresh_token: provider_refresh_token
+          }
+        })
+      }
+
       const forwardedHost = request.headers.get('x-forwarded-host') // original origin before load balancer
       const isLocalEnv = process.env.NODE_ENV === 'development'
       
