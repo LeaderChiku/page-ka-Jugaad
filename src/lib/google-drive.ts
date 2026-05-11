@@ -56,7 +56,8 @@ export async function getOrCreateAppFolder(): Promise<string | null> {
     // 1. Search for existing folder
     const searchUrl = `https://www.googleapis.com/drive/v3/files?q=name='${APP_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
     const searchRes = await fetch(searchUrl, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(10000)
     })
     
     if (!searchRes.ok) {
@@ -77,6 +78,7 @@ export async function getOrCreateAppFolder(): Promise<string | null> {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
+      signal: AbortSignal.timeout(10000),
       body: JSON.stringify({
         name: APP_FOLDER_NAME,
         mimeType: 'application/vnd.google-apps.folder',
@@ -102,30 +104,47 @@ export async function getOrCreateAppFolder(): Promise<string | null> {
  * Lists image files from the "PageKaJugaad" folder.
  */
 export async function fetchDriveInventory(): Promise<DriveFile[]> {
+  console.log('fetchDriveInventory: Starting sync...')
   const token = await getGoogleToken()
-  if (!token) throw new Error('AUTH_EXPIRED')
+  if (!token) {
+    console.warn('fetchDriveInventory: No token available')
+    throw new Error('AUTH_EXPIRED')
+  }
 
+  console.log('fetchDriveInventory: Getting app folder...')
   const folderId = await getOrCreateAppFolder()
-  if (!folderId) throw new Error('FOLDER_NOT_FOUND')
+  if (!folderId) {
+    console.error('fetchDriveInventory: App folder not found or could not be created')
+    throw new Error('FOLDER_NOT_FOUND')
+  }
 
   try {
+    console.log('fetchDriveInventory: Requesting file list from Drive...')
     const listUrl = `https://www.googleapis.com/drive/v3/files?q='${folderId}' in parents and trashed=false&fields=files(id,name,thumbnailLink,webContentLink,mimeType)`
     const res = await fetch(listUrl, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(10000)
     })
     
     if (!res.ok) {
-      if (res.status === 401) throw new Error('AUTH_EXPIRED')
+      if (res.status === 401) {
+        console.warn('fetchDriveInventory: 401 Unauthorized')
+        throw new Error('AUTH_EXPIRED')
+      }
       const errData = await res.json()
-      console.error('Drive List Error:', errData)
+      console.error('fetchDriveInventory: Drive List API Error:', errData)
       return []
     }
 
     const data = await res.json()
+    console.log(`fetchDriveInventory: Found ${data.files?.length || 0} files`)
     return data.files || []
   } catch (error: any) {
+    if (error.name === 'AbortError') {
+      console.error('fetchDriveInventory: Request timed out')
+    }
     if (error.message === 'AUTH_EXPIRED') throw error
-    console.error('Error fetching Drive inventory:', error)
+    console.error('fetchDriveInventory: Unexpected error:', error)
     return []
   }
 }
@@ -167,6 +186,7 @@ export async function uploadToDrive(file: File | Blob, fileName: string): Promis
       headers: {
         Authorization: `Bearer ${token}`
       },
+      signal: AbortSignal.timeout(30000), // Longer timeout for uploads
       body: formData
     })
 
@@ -194,7 +214,8 @@ export async function deleteFromDrive(fileId: string): Promise<boolean> {
   try {
     const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(10000)
     })
     
     if (!res.ok) {

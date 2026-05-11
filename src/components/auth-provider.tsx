@@ -17,40 +17,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
 
+  const isSyncingRef = React.useRef(false)
+
   // Initialize and listen to auth state changes
   React.useEffect(() => {
     let mounted = true
-
-    const initAuth = async () => {
-      // Check for initial session
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (mounted && session) {
-        console.log("Initial session restored for:", session.user.email)
-        try {
-          await syncInventory()
-        } catch (error) {
-          console.warn("Initial inventory sync failed - user may need to re-auth for Drive access")
-        }
-      }
-    }
-
-    initAuth()
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return
 
-      console.log(`Auth event: ${event}`, session?.user?.email)
+      console.log(`[AuthProvider] Auth Event: ${event}`, session?.user?.email)
 
-      // Handle login or token refresh events
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        if (session) {
+      // Handle login, token refresh, or initial session events
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+        if (session && !isSyncingRef.current) {
+          isSyncingRef.current = true
+          console.log(`[AuthProvider] Starting inventory sync for ${event}...`)
           try {
             await syncInventory()
           } catch (error) {
-            console.error("Inventory sync failed after auth event:", event, error)
+            console.error(`[AuthProvider] Inventory sync failed for ${event}:`, error)
+          } finally {
+            isSyncingRef.current = false
+            console.log(`[AuthProvider] Inventory sync finished for ${event}`)
           }
         }
       }
@@ -60,7 +51,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearInventory()
         // If we are on a protected route, the middleware or layout should handle redirection,
         // but we can also trigger a refresh here.
-        router.refresh()
+        if (pathname !== '/login' && pathname !== '/signup' && pathname !== '/') {
+          router.refresh()
+        }
       }
     })
 
@@ -68,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mounted = false
       subscription.unsubscribe()
     }
-  }, [supabase, syncInventory, clearInventory, router])
+  }, [supabase, syncInventory, clearInventory, router, pathname])
 
   return <>{children}</>
 }

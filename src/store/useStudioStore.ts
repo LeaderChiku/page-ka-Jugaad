@@ -42,7 +42,7 @@ interface StudioState {
   clearRandomLayout: () => void
 }
 
-export const useStudioStore = create<StudioState>((set) => ({
+export const useStudioStore = create<StudioState>((set, get) => ({
   inventory: [],
   selectedIds: [],
   paperSize: 'A4',
@@ -131,14 +131,15 @@ export const useStudioStore = create<StudioState>((set) => ({
   clearRandomLayout: () => set({ randomLayoutData: null }),
   
   syncInventory: async () => {
-    const { fetchDriveInventory } = await import('@/lib/google-drive')
+    if (get().isLoadingInventory) return;
+
     set({ isLoadingInventory: true })
     try {
+      const { fetchDriveInventory } = await import('@/lib/google-drive')
       const files = await fetchDriveInventory()
       set({ inventory: files })
     } catch (error) {
       console.error('Failed to sync inventory:', error)
-      throw error
     } finally {
       set({ isLoadingInventory: false })
     }
