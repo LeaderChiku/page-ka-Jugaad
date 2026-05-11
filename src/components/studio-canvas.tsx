@@ -217,6 +217,7 @@ export function StudioCanvas() {
                   >
                     <img 
                       src={item.url} 
+                      crossOrigin="anonymous"
                       className="block object-contain drop-shadow-md" 
                       alt="Random Item" 
                       style={{
@@ -263,6 +264,7 @@ export function StudioCanvas() {
                         >
                           <img 
                             src={item.url} 
+                            crossOrigin="anonymous"
                             className="block object-contain pointer-events-none select-none" 
                             alt={`Layout Item ${i}`}
                             style={{ 

@@ -12,6 +12,7 @@ import { FileDown, Loader2 } from "lucide-react"
 import html2canvas from "html2canvas"
 import jsPDF from "jspdf"
 import { useStudioStore } from "@/store/useStudioStore"
+import { toast } from "sonner"
 
 export default function StudioPage() {
   const router = useRouter()
@@ -70,9 +71,12 @@ export default function StudioPage() {
 
       // Add image to cover the full PDF page
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST')
-      pdf.save(`Layout-${paperSize}-${orientation}-${Date.now()}.pdf`)
+      pdf.save(`pagekajugaad-${paperSize.toLowerCase()}-${orientation}.pdf`)
     } catch (err) {
       console.error("PDF Export failed:", err)
+      toast.error("PDF generation failed", {
+        description: "Please try again."
+      })
     } finally {
       setExporting(false)
     }
