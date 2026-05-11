@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/client'
 
 const APP_FOLDER_NAME = 'PageKaJugaad Inventory'
+const LOCAL_STORAGE_KEY = 'pagekajugaad_drive_folder_id'
 
 export interface DriveFile {
   id: string
@@ -50,11 +51,7 @@ async function getGoogleToken() {
  * Generic wrapper for Google Drive API requests with automatic retry on 401.
  */
 async function driveRequest(url: string, options: RequestInit = {}, retryCount = 0): Promise<Response> {
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => {
-    console.warn(`[Google Drive] Request timed out after 8s: ${url}`)
-    controller.abort()
-  }, 8000)
+  const signal = options.signal || AbortSignal.timeout(15000);
 
   try {
     const token = await getGoogleToken()
@@ -71,7 +68,7 @@ async function driveRequest(url: string, options: RequestInit = {}, retryCount =
     const response = await fetch(url, { 
       ...options, 
       headers,
-      signal: controller.signal
+      signal
     })
 
     if (response.status === 401 && retryCount === 0) {
@@ -89,22 +86,41 @@ async function driveRequest(url: string, options: RequestInit = {}, retryCount =
 
     return response
   } catch (error: any) {
-    if (error.name === 'AbortError') {
+    if (error.name === 'AbortError' || error.name === 'TimeoutError') {
       console.error(`[Google Drive] Request aborted (timeout): ${url}`)
       throw new Error('DRIVE_TIMEOUT')
     }
     throw error
-  } finally {
-    clearTimeout(timeoutId)
   }
 }
 
 /**
  * Finds or creates the dedicated "PageKaJugaad" folder in the user's Google Drive.
+ * Caches the folderId in localStorage and Supabase user_metadata for fast retrieval.
  */
-export async function getOrCreateAppFolder(): Promise<string | null> {
+export async function getOrCreateInventoryFolder(): Promise<string | null> {
   try {
-    // 1. Search for existing folder
+    // 1. Check local storage
+    if (typeof window !== 'undefined') {
+      const localFolderId = localStorage.getItem(LOCAL_STORAGE_KEY)
+      if (localFolderId) {
+        return localFolderId
+      }
+    }
+
+    // 2. Check Supabase user_metadata
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (user?.user_metadata?.driveFolderId) {
+      const metadataFolderId = user.user_metadata.driveFolderId
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(LOCAL_STORAGE_KEY, metadataFolderId)
+      }
+      return metadataFolderId
+    }
+
+    // 3. Search for existing folder in Google Drive
     const searchUrl = `https://www.googleapis.com/drive/v3/files?q=name='${APP_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
     const searchRes = await driveRequest(searchUrl, {
       signal: AbortSignal.timeout(10000)
@@ -117,34 +133,49 @@ export async function getOrCreateAppFolder(): Promise<string | null> {
     }
 
     const searchData = await searchRes.json()
+    let folderId = null;
+
     if (searchData.files && searchData.files.length > 0) {
-      return searchData.files[0].id
-    }
-
-    // 2. Create folder if not found
-    console.log('[Google Drive] App folder not found, creating new one...')
-    const createRes = await driveRequest('https://www.googleapis.com/drive/v3/files', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      signal: AbortSignal.timeout(10000),
-      body: JSON.stringify({
-        name: APP_FOLDER_NAME,
-        mimeType: 'application/vnd.google-apps.folder',
-        description: 'Auto-generated folder for PageKaJugaad application assets'
+      folderId = searchData.files[0].id
+    } else {
+      // 4. Create folder if not found
+      console.log('[Google Drive] App folder not found, creating new one...')
+      const createRes = await driveRequest('https://www.googleapis.com/drive/v3/files', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        signal: AbortSignal.timeout(10000),
+        body: JSON.stringify({
+          name: APP_FOLDER_NAME,
+          mimeType: 'application/vnd.google-apps.folder',
+          description: 'Auto-generated folder for PageKaJugaad application assets'
+        })
       })
-    })
 
-    if (!createRes.ok) {
-      const errData = await createRes.json()
-      console.error('[Google Drive] Folder Creation Error:', errData)
-      return null
+      if (!createRes.ok) {
+        const errData = await createRes.json()
+        console.error('[Google Drive] Folder Creation Error:', errData)
+        return null
+      }
+
+      const createData = await createRes.json()
+      console.log('[Google Drive] App folder created:', createData.id)
+      folderId = createData.id
     }
 
-    const createData = await createRes.json()
-    console.log('[Google Drive] App folder created:', createData.id)
-    return createData.id
+    if (folderId) {
+      // Save the discovered/created folderId permanently
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(LOCAL_STORAGE_KEY, folderId)
+      }
+      await supabase.auth.updateUser({
+        data: { driveFolderId: folderId }
+      })
+      return folderId
+    }
+
+    return null
   } catch (error) {
     console.error('[Google Drive] Error getting/creating folder:', error)
     return null
@@ -158,7 +189,7 @@ export async function fetchDriveInventory(): Promise<DriveFile[]> {
   console.log('[Google Drive] Starting inventory sync...')
   
   try {
-    const folderId = await getOrCreateAppFolder()
+    const folderId = await getOrCreateInventoryFolder()
     if (!folderId) {
       console.error('[Google Drive] App folder not found or could not be created')
       throw new Error('FOLDER_NOT_FOUND')
@@ -196,7 +227,7 @@ export async function fetchDriveInventory(): Promise<DriveFile[]> {
  * Uploads a file (dataURL or File object) to the "PageKaJugaad" folder.
  */
 export async function uploadToDrive(file: File | Blob, fileName: string): Promise<string | null> {
-  const folderId = await getOrCreateAppFolder()
+  const folderId = await getOrCreateInventoryFolder()
   if (!folderId) return null
 
   // Secure validation
