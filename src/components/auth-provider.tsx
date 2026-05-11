@@ -8,9 +8,8 @@ import { useRouter, usePathname } from "next/navigation"
 const PROVIDER_TOKEN_KEY = 'pagekajugaad_provider_token'
 
 /**
- * AuthProvider handles global authentication state and session persistence.
- * It listens for Supabase auth events and triggers necessary side effects like
- * syncing Google Drive inventory when a user is logged in.
+ * AuthProvider — INVESTIGATION MODE
+ * syncInventory is temporarily disabled. Only token lifecycle is traced.
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = React.useMemo(() => createClient(), [])
@@ -21,10 +20,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const pathnameRef = React.useRef(pathname)
 
-  // Keep pathnameRef in sync so the auth listener can read current path without being in the dep array
   React.useEffect(() => { pathnameRef.current = pathname }, [pathname])
 
-  // Initialize and listen to auth state changes
   React.useEffect(() => {
     let mounted = true
 
@@ -33,63 +30,69 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return
 
-      console.log(`[AuthProvider] Auth Event: ${event}`, session?.user?.email ? `for ${session.user.email}` : '(no session)')
+      // ─── [TOKEN-TRACE] FULL SESSION DUMP ─────────────────────────────
+      console.group(`[TOKEN-TRACE] ══ Auth Event: ${event} ══`)
+      console.log('[TOKEN-TRACE] Full session object:', session)
+      console.log('[TOKEN-TRACE] session?.provider_token:', session?.provider_token)
+      console.log('[TOKEN-TRACE] session?.provider_refresh_token:', session?.provider_refresh_token)
+      console.log('[TOKEN-TRACE] session top-level keys:', Object.keys(session ?? {}))
+      console.log('[TOKEN-TRACE] user?.identities:', session?.user?.identities)
+      console.log('[TOKEN-TRACE] user?.app_metadata:', session?.user?.app_metadata)
+      console.log('[TOKEN-TRACE] localStorage token BEFORE this event:', localStorage.getItem(PROVIDER_TOKEN_KEY))
+      console.groupEnd()
+      // ─────────────────────────────────────────────────────────────────
 
-      // Handle login, token refresh, or initial session events
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
         if (session) {
-          // Resolve the best available provider token:
-          // A: fresh from session (most reliable, only present on SIGNED_IN / TOKEN_REFRESHED)
-          // B: persisted in localStorage (fallback for INITIAL_SESSION after page refresh)
-          let token: string | null = session.provider_token ?? null
+          const sessionToken = session.provider_token ?? null
 
-          if (token) {
-            console.log(`[AuthProvider] Using provider token from session (${event}).`)
-            // Persist so it survives future page refreshes
-            localStorage.setItem(PROVIDER_TOKEN_KEY, token)
+          if (sessionToken) {
+            console.log(`[TOKEN-TRACE] ✅ provider_token EXISTS in session for ${event}.`)
+            console.log(`[TOKEN-TRACE] Writing to localStorage with key "${PROVIDER_TOKEN_KEY}"...`)
+            localStorage.setItem(PROVIDER_TOKEN_KEY, sessionToken)
+            const readBack = localStorage.getItem(PROVIDER_TOKEN_KEY)
+            console.log(
+              `[TOKEN-TRACE] localStorage write verification: ${readBack
+                ? `✅ SUCCESS — "${readBack.substring(0, 30)}..."`
+                : '❌ FAILED — getItem returned null'}`
+            )
           } else {
-            // Supabase does NOT reliably return provider_token on INITIAL_SESSION after refresh
+            console.warn(`[TOKEN-TRACE] ❌ provider_token is NULL/UNDEFINED in session for ${event}.`)
             const cached = localStorage.getItem(PROVIDER_TOKEN_KEY)
-            if (cached) {
-              console.log(`[AuthProvider] Using provider token from localStorage fallback (${event}).`)
-              token = cached
-            } else {
-              console.warn(`[AuthProvider] No provider token available for ${event}. Sync will be skipped.`)
-            }
+            console.log(
+              `[TOKEN-TRACE] localStorage fallback check: ${cached
+                ? `✅ Found cached token — "${cached.substring(0, 30)}..."`
+                : '❌ EMPTY — nothing in localStorage either'}`
+            )
           }
 
-          setProviderToken(token)
+          // ⚠️ INVESTIGATION MODE: syncInventory is DISABLED.
+          // We are only tracing the token lifecycle. Do NOT re-enable here.
+          console.log('[TOKEN-TRACE] ⏸  syncInventory() SKIPPED — investigation mode active.')
 
-          if (!token) {
-            // No token anywhere — cannot sync Drive
-          } else {
-            // Yield one microtask so Zustand flushes setProviderToken before syncInventory reads it
-            await Promise.resolve()
-            console.log(`[AuthProvider] Token stored. Triggering inventory sync...`)
-            try {
-              await syncInventory()
-            } catch (error: any) {
-              console.error(`[AuthProvider] Global sync failed for ${event}:`, error.message)
-            }
-          }
         } else {
-          console.warn(`[AuthProvider] ${event} received but no session found.`)
-        if (event === 'INITIAL_SESSION' && !session && pathnameRef.current !== '/login' && pathnameRef.current !== '/signup' && pathnameRef.current !== '/') {
-            console.log('[AuthProvider] Unauthenticated INITIAL_SESSION on protected route. Redirecting...')
+          console.warn(`[TOKEN-TRACE] ❌ ${event} fired but session is null.`)
+          if (
+            event === 'INITIAL_SESSION' &&
+            pathnameRef.current !== '/login' &&
+            pathnameRef.current !== '/signup' &&
+            pathnameRef.current !== '/'
+          ) {
+            console.log('[AuthProvider] No session on protected route — redirecting to /login')
             router.push('/login')
           }
         }
       }
 
-      // Handle logout
       if (event === 'SIGNED_OUT') {
-        console.log('[AuthProvider] User signed out, clearing inventory and cached token...')
+        console.log('[TOKEN-TRACE] SIGNED_OUT — removing cached provider token from localStorage.')
         localStorage.removeItem(PROVIDER_TOKEN_KEY)
         clearInventory()
-        
-        // Refresh only if on a protected route to clear data from UI
-        if (pathnameRef.current !== '/login' && pathnameRef.current !== '/signup' && pathnameRef.current !== '/') {
-          console.log('[AuthProvider] Redirecting or refreshing from protected route...')
+        if (
+          pathnameRef.current !== '/login' &&
+          pathnameRef.current !== '/signup' &&
+          pathnameRef.current !== '/'
+        ) {
           router.push('/login')
         }
       }
