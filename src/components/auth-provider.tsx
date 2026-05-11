@@ -17,8 +17,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
 
-  const isSyncingRef = React.useRef(false)
-
   // Initialize and listen to auth state changes
   React.useEffect(() => {
     let mounted = true
@@ -28,31 +26,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return
 
-      console.log(`[AuthProvider] Auth Event: ${event}`, session?.user?.email)
+      console.log(`[AuthProvider] Auth Event: ${event}`, session?.user?.email ? `for ${session.user.email}` : '(no session)')
 
       // Handle login, token refresh, or initial session events
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-        if (session && !isSyncingRef.current) {
-          isSyncingRef.current = true
-          console.log(`[AuthProvider] Starting inventory sync for ${event}...`)
+        if (session) {
+          console.log(`[AuthProvider] Session available for ${event}. Triggering inventory sync...`)
           try {
             await syncInventory()
-          } catch (error) {
-            console.error(`[AuthProvider] Inventory sync failed for ${event}:`, error)
-          } finally {
-            isSyncingRef.current = false
-            console.log(`[AuthProvider] Inventory sync finished for ${event}`)
+          } catch (error: any) {
+            console.error(`[AuthProvider] Global sync failed for ${event}:`, error.message)
           }
+        } else {
+          console.warn(`[AuthProvider] ${event} received but no session found.`)
         }
       }
 
       // Handle logout
       if (event === 'SIGNED_OUT') {
+        console.log('[AuthProvider] User signed out, clearing inventory...')
         clearInventory()
-        // If we are on a protected route, the middleware or layout should handle redirection,
-        // but we can also trigger a refresh here.
+        
+        // Refresh only if on a protected route to clear data from UI
         if (pathname !== '/login' && pathname !== '/signup' && pathname !== '/') {
-          router.refresh()
+          console.log('[AuthProvider] Redirecting or refreshing from protected route...')
+          router.push('/login')
         }
       }
     })

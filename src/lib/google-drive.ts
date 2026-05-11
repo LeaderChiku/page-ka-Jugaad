@@ -28,17 +28,18 @@ async function getGoogleToken() {
   const supabase = createClient()
   
   // getSession() will automatically refresh the Supabase session if autoRefreshToken is true
+  console.log('[Google Drive] Fetching dynamic session...')
   const { data: { session }, error } = await supabase.auth.getSession()
   
   if (error) {
-    console.error('Supabase session error:', error)
+    console.error('[Google Drive] Supabase session error:', error)
     return null
   }
 
   const token = session?.provider_token
   
   if (!token) {
-    console.warn('No Google provider token found in session. User may need to re-authenticate.')
+    console.warn('[Google Drive] No Google provider token found in session.')
     return null
   }
   
@@ -46,23 +47,53 @@ async function getGoogleToken() {
 }
 
 /**
+ * Generic wrapper for Google Drive API requests with automatic retry on 401.
+ */
+async function driveRequest(url: string, options: RequestInit = {}, retryCount = 0): Promise<Response> {
+  const token = await getGoogleToken()
+  if (!token) {
+    throw new Error('AUTH_EXPIRED')
+  }
+
+  const headers = {
+    ...options.headers,
+    Authorization: `Bearer ${token}`
+  }
+
+  console.log(`[Google Drive] Requesting: ${url} (Retry: ${retryCount})`)
+  const response = await fetch(url, { ...options, headers })
+
+  if (response.status === 401 && retryCount === 0) {
+    console.warn('[Google Drive] 401 Unauthorized detected. Attempting silent session refresh...')
+    const supabase = createClient()
+    const { data: { session }, error } = await supabase.auth.refreshSession()
+    
+    if (error || !session?.provider_token) {
+      console.error('[Google Drive] Session refresh failed or no provider token after refresh.')
+      throw new Error('AUTH_EXPIRED')
+    }
+
+    console.log('[Google Drive] Session refreshed successfully. Retrying request...')
+    return driveRequest(url, options, retryCount + 1)
+  }
+
+  return response
+}
+
+/**
  * Finds or creates the dedicated "PageKaJugaad" folder in the user's Google Drive.
  */
 export async function getOrCreateAppFolder(): Promise<string | null> {
-  const token = await getGoogleToken()
-  if (!token) return null
-
   try {
     // 1. Search for existing folder
     const searchUrl = `https://www.googleapis.com/drive/v3/files?q=name='${APP_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
-    const searchRes = await fetch(searchUrl, {
-      headers: { Authorization: `Bearer ${token}` },
+    const searchRes = await driveRequest(searchUrl, {
       signal: AbortSignal.timeout(10000)
     })
     
     if (!searchRes.ok) {
       const errData = await searchRes.json()
-      console.error('Drive Search Error:', errData)
+      console.error('[Google Drive] Folder Search Error:', errData)
       return null
     }
 
@@ -72,10 +103,10 @@ export async function getOrCreateAppFolder(): Promise<string | null> {
     }
 
     // 2. Create folder if not found
-    const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+    console.log('[Google Drive] App folder not found, creating new one...')
+    const createRes = await driveRequest('https://www.googleapis.com/drive/v3/files', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       signal: AbortSignal.timeout(10000),
@@ -88,14 +119,15 @@ export async function getOrCreateAppFolder(): Promise<string | null> {
 
     if (!createRes.ok) {
       const errData = await createRes.json()
-      console.error('Drive Folder Creation Error:', errData)
+      console.error('[Google Drive] Folder Creation Error:', errData)
       return null
     }
 
     const createData = await createRes.json()
+    console.log('[Google Drive] App folder created:', createData.id)
     return createData.id
   } catch (error) {
-    console.error('Error getting/creating Drive folder:', error)
+    console.error('[Google Drive] Error getting/creating folder:', error)
     return null
   }
 }
@@ -104,47 +136,39 @@ export async function getOrCreateAppFolder(): Promise<string | null> {
  * Lists image files from the "PageKaJugaad" folder.
  */
 export async function fetchDriveInventory(): Promise<DriveFile[]> {
-  console.log('fetchDriveInventory: Starting sync...')
-  const token = await getGoogleToken()
-  if (!token) {
-    console.warn('fetchDriveInventory: No token available')
-    throw new Error('AUTH_EXPIRED')
-  }
-
-  console.log('fetchDriveInventory: Getting app folder...')
-  const folderId = await getOrCreateAppFolder()
-  if (!folderId) {
-    console.error('fetchDriveInventory: App folder not found or could not be created')
-    throw new Error('FOLDER_NOT_FOUND')
-  }
-
+  console.log('[Google Drive] Starting inventory sync...')
+  
   try {
-    console.log('fetchDriveInventory: Requesting file list from Drive...')
+    const folderId = await getOrCreateAppFolder()
+    if (!folderId) {
+      console.error('[Google Drive] App folder not found or could not be created')
+      throw new Error('FOLDER_NOT_FOUND')
+    }
+
+    console.log('[Google Drive] Fetching file list...')
     const listUrl = `https://www.googleapis.com/drive/v3/files?q='${folderId}' in parents and trashed=false&fields=files(id,name,thumbnailLink,webContentLink,mimeType)`
-    const res = await fetch(listUrl, {
-      headers: { Authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(10000)
+    const res = await driveRequest(listUrl, {
+      signal: AbortSignal.timeout(15000)
     })
     
     if (!res.ok) {
-      if (res.status === 401) {
-        console.warn('fetchDriveInventory: 401 Unauthorized')
-        throw new Error('AUTH_EXPIRED')
-      }
       const errData = await res.json()
-      console.error('fetchDriveInventory: Drive List API Error:', errData)
+      console.error('[Google Drive] List API Error:', errData)
       return []
     }
 
     const data = await res.json()
-    console.log(`fetchDriveInventory: Found ${data.files?.length || 0} files`)
+    console.log(`[Google Drive] Sync success: found ${data.files?.length || 0} files`)
     return data.files || []
   } catch (error: any) {
     if (error.name === 'AbortError') {
-      console.error('fetchDriveInventory: Request timed out')
+      console.error('[Google Drive] Request timed out')
     }
-    if (error.message === 'AUTH_EXPIRED') throw error
-    console.error('fetchDriveInventory: Unexpected error:', error)
+    if (error.message === 'AUTH_EXPIRED') {
+      console.warn('[Google Drive] Auth expired during sync')
+      throw error
+    }
+    console.error('[Google Drive] Unexpected sync error:', error)
     return []
   }
 }
@@ -153,20 +177,17 @@ export async function fetchDriveInventory(): Promise<DriveFile[]> {
  * Uploads a file (dataURL or File object) to the "PageKaJugaad" folder.
  */
 export async function uploadToDrive(file: File | Blob, fileName: string): Promise<string | null> {
-  const token = await getGoogleToken()
-  if (!token) return null
-
   const folderId = await getOrCreateAppFolder()
   if (!folderId) return null
 
   // Secure validation
   if (file instanceof File || file instanceof Blob) {
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-      console.error('Rejected: Unsupported file type', file.type)
+      console.error('[Google Drive] Rejected: Unsupported file type', file.type)
       return null
     }
     if (file.size > MAX_FILE_SIZE) {
-      console.error('Rejected: File too large', file.size)
+      console.error('[Google Drive] Rejected: File too large', file.size)
       return null
     }
   }
@@ -181,25 +202,24 @@ export async function uploadToDrive(file: File | Blob, fileName: string): Promis
     formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }))
     formData.append('file', file)
 
-    const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+    console.log(`[Google Drive] Uploading file: ${fileName}...`)
+    const res = await driveRequest('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`
-      },
-      signal: AbortSignal.timeout(30000), // Longer timeout for uploads
+      signal: AbortSignal.timeout(60000), // Longer timeout for uploads
       body: formData
     })
 
     if (!res.ok) {
       const errData = await res.json()
-      console.error('Drive Upload API Error:', errData)
+      console.error('[Google Drive] Upload API Error:', errData)
       return null
     }
 
     const data = await res.json()
+    console.log('[Google Drive] Upload successful:', data.id)
     return data.id
   } catch (error) {
-    console.error('Error uploading to Drive:', error)
+    console.error('[Google Drive] Error uploading file:', error)
     return null
   }
 }
@@ -208,25 +228,23 @@ export async function uploadToDrive(file: File | Blob, fileName: string): Promis
  * Deletes a file from Google Drive.
  */
 export async function deleteFromDrive(fileId: string): Promise<boolean> {
-  const token = await getGoogleToken()
-  if (!token) return false
-
   try {
-    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+    console.log(`[Google Drive] Deleting file: ${fileId}...`)
+    const res = await driveRequest(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(10000)
     })
     
     if (!res.ok) {
       const errData = await res.json()
-      console.error('Drive Delete Error:', errData)
+      console.error('[Google Drive] Delete Error:', errData)
       return false
     }
 
+    console.log('[Google Drive] Delete successful')
     return res.status === 204
   } catch (error) {
-    console.error('Error deleting from Drive:', error)
+    console.error('[Google Drive] Error deleting file:', error)
     return false
   }
 }

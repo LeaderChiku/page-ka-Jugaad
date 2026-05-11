@@ -131,15 +131,21 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   clearRandomLayout: () => set({ randomLayoutData: null }),
   
   syncInventory: async () => {
-    if (get().isLoadingInventory) return;
+    if (get().isLoadingInventory) {
+      console.log('[Store] Sync already in progress, skipping...')
+      return;
+    }
 
+    console.log('[Store] Starting inventory sync...')
     set({ isLoadingInventory: true })
     try {
       const { fetchDriveInventory } = await import('@/lib/google-drive')
       const files = await fetchDriveInventory()
       set({ inventory: files })
-    } catch (error) {
-      console.error('Failed to sync inventory:', error)
+      console.log('[Store] Inventory sync completed successfully')
+    } catch (error: any) {
+      console.error('[Store] Failed to sync inventory:', error)
+      throw error // Re-throw to allow component to handle it
     } finally {
       set({ isLoadingInventory: false })
     }

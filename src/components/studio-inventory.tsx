@@ -45,13 +45,16 @@ export function StudioInventory() {
   const handleRefresh = async () => {
     try {
       await syncInventory()
+      toast.success("Inventory synced.")
     } catch (err: any) {
       if (err.message === 'AUTH_EXPIRED') {
         toast.error("Google session expired.", {
           description: "Please log out and log in again to reconnect your Drive."
         })
       } else {
-        toast.error("Failed to sync with Google Drive.")
+        toast.error("Failed to sync with Google Drive.", {
+          description: "Please check your internet connection or try again later."
+        })
       }
     }
   }
@@ -172,7 +175,12 @@ export function StudioInventory() {
       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
 
 
-        {inventory.length === 0 && !isLoadingInventory ? (
+        {isLoadingInventory && inventory.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-40 text-center space-y-4 text-zinc-500">
+            <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+            <p className="text-sm font-medium animate-pulse">Syncing inventory...</p>
+          </div>
+        ) : inventory.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 text-center space-y-2 text-zinc-500">
             <ImageIcon className="h-8 w-8 opacity-20" />
             <p className="text-sm">No images yet.<br/>Upload to your Drive.</p>

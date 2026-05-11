@@ -20,13 +20,6 @@ export default function StudioPage() {
   const { paperSize, orientation } = useStudioStore()
   React.useEffect(() => {
     const checkAuth = async () => {
-      const timeoutId = setTimeout(() => {
-        if (loading) {
-          console.warn("StudioPage: Auth check timed out, forcing loading to false")
-          setLoading(false)
-        }
-      }, 5000)
-
       try {
         const supabase = createClient()
         console.log("StudioPage: Checking session...")
@@ -42,7 +35,6 @@ export default function StudioPage() {
         console.error("StudioPage: Auth check error:", err)
         router.push('/login')
       } finally {
-        clearTimeout(timeoutId)
         setLoading(false)
       }
     }
