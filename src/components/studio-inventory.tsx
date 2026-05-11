@@ -6,7 +6,7 @@ import { useStudioStore } from "@/store/useStudioStore"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
-import { uploadToDrive, fetchDriveInventory, deleteFromDrive, DriveFile, ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE, getDriveImageUrl } from "@/lib/google-drive"
+import { uploadToDrive, fetchDriveInventory, deleteFromDrive, DriveFile, ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE, getDriveImageProxyUrl } from "@/lib/google-drive"
 import { toast } from "sonner"
 import {
   Tooltip,
@@ -231,7 +231,7 @@ export function StudioInventory() {
                       : "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 hover:border-indigo-300"
                   )}
                 >
-                  <img src={getDriveImageUrl(img.id)} alt={img.name} className="object-cover w-full h-full" />
+                  <img src={getDriveImageProxyUrl(img.id)} alt={img.name} className="object-cover w-full h-full" />
                   
                   {/* Selection Badge */}
                   {isSelected && (
