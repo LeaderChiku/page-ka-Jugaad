@@ -137,6 +137,15 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   clearRandomLayout: () => set({ randomLayoutData: null }),
   
   syncInventory: async () => {
+    // Hard block: do not allow sync if the provider token hasn't been stored yet.
+    // This prevents AUTH_EXPIRED being thrown during the race window between
+    // onAuthStateChange firing and setProviderToken completing.
+    const token = get().providerToken
+    if (!token) {
+      console.warn('[Store] Skipping inventory sync: providerToken not yet in store.')
+      return
+    }
+
     if (get().isLoadingInventory) {
       console.log('[Store] Sync already in progress, skipping...')
       return;

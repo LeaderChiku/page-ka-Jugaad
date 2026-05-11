@@ -36,12 +36,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Handle login, token refresh, or initial session events
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
         if (session) {
-          console.log(`[AuthProvider] Session available for ${event}. Saving token and triggering sync...`)
-          setProviderToken(session.provider_token ?? null)
-          try {
-            await syncInventory()
-          } catch (error: any) {
-            console.error(`[AuthProvider] Global sync failed for ${event}:`, error.message)
+          const token = session.provider_token ?? null
+          console.log(`[AuthProvider] Session available for ${event}. Storing token...`)
+          setProviderToken(token)
+
+          if (!token) {
+            console.warn(`[AuthProvider] No provider_token in session for ${event}. Skipping sync.`)
+          } else {
+            // Yield one microtask so Zustand can flush setProviderToken before syncInventory reads it.
+            // Without this, syncInventory's token guard would see providerToken as still null.
+            await Promise.resolve()
+            console.log(`[AuthProvider] Token stored. Triggering inventory sync...`)
+            try {
+              await syncInventory()
+            } catch (error: any) {
+              console.error(`[AuthProvider] Global sync failed for ${event}:`, error.message)
+            }
           }
         } else {
           console.warn(`[AuthProvider] ${event} received but no session found.`)
