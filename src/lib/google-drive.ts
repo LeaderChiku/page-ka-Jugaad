@@ -22,6 +22,18 @@ export const ALLOWED_IMAGE_TYPES = [
 export const MAX_FILE_SIZE = 25 * 1024 * 1024 // 25MB
 
 /**
+ * Standardizes Google Drive image URL generation for safe cross-origin embedding.
+ * Allows easy toggling between thumbnail and uc endpoints for testing compatibility.
+ */
+export function getDriveImageUrl(fileId: string): string {
+  // Option 1: High-res thumbnail (Active for testing - best quality)
+  return `https://drive.google.com/thumbnail?id=${fileId}&sz=w2000`
+  
+  // Option 2: Direct view URL (Fallback for testing - best CORS compatibility)
+  // return `https://drive.google.com/uc?export=view&id=${fileId}`
+}
+
+/**
  * Fetches the provider token from the Supabase session.
  * This token is used to call Google APIs.
  */

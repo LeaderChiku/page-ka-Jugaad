@@ -4,6 +4,7 @@ import * as React from "react"
 import { useStudioStore, PaperSize, Orientation } from "@/store/useStudioStore"
 import { cn } from "@/lib/utils"
 import { RotateCw, RefreshCcw } from "lucide-react"
+import { getDriveImageUrl } from "@/lib/google-drive"
 
 const PAPER_RATIOS: Record<PaperSize, number> = {
   'A4': 1.414,
@@ -50,7 +51,7 @@ export function StudioCanvas() {
     const baseItems = selectedIds
       .map(id => {
         const item = inventory.find(f => f.id === id)
-        return item ? { id: item.id, url: item.thumbnailLink } : null
+        return item ? { id: item.id, url: getDriveImageUrl(item.id) } : null
       })
       .filter(Boolean) as { id: string, url: string }[]
 

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { DriveFile } from '@/lib/google-drive'
+import { DriveFile, getDriveImageUrl } from '@/lib/google-drive'
 
 export type PaperSize = 'A4' | 'A5' | 'A6' | 'A7' | 'Letter' | 'Legal'
 export type Orientation = 'portrait' | 'landscape'
@@ -125,7 +125,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       const item = state.inventory[randomIndex];
       randomItems.push({
         id: item.id,
-        url: item.thumbnailLink,
+        url: getDriveImageUrl(item.id),
         x: Math.random() * 80 + 10, // 10% to 90%
         y: Math.random() * 80 + 10,
         rotation: Math.random() * 360,
