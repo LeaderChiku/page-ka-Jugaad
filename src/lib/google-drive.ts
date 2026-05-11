@@ -99,27 +99,32 @@ async function driveRequest(url: string, options: RequestInit = {}, retryCount =
  * Caches the folderId in localStorage and Supabase user_metadata for fast retrieval.
  */
 export async function getOrCreateInventoryFolder(): Promise<string | null> {
+  console.log("[Google Drive] STEP 1: Checking localStorage")
   try {
     // 1. Check local storage
     if (typeof window !== 'undefined') {
       const localFolderId = localStorage.getItem(LOCAL_STORAGE_KEY)
       if (localFolderId) {
+        console.log("[Google Drive] Found in localStorage:", localFolderId)
         return localFolderId
       }
     }
 
+    console.log("[Google Drive] STEP 2: Checking Supabase metadata")
     // 2. Check Supabase user_metadata
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     
     if (user?.user_metadata?.driveFolderId) {
       const metadataFolderId = user.user_metadata.driveFolderId
+      console.log("[Google Drive] Found in Supabase metadata:", metadataFolderId)
       if (typeof window !== 'undefined') {
         localStorage.setItem(LOCAL_STORAGE_KEY, metadataFolderId)
       }
       return metadataFolderId
     }
 
+    console.log("[Google Drive] STEP 3: Searching Drive")
     // 3. Search for existing folder in Google Drive
     const searchUrl = `https://www.googleapis.com/drive/v3/files?q=name='${APP_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
     const searchRes = await driveRequest(searchUrl, {
@@ -137,7 +142,9 @@ export async function getOrCreateInventoryFolder(): Promise<string | null> {
 
     if (searchData.files && searchData.files.length > 0) {
       folderId = searchData.files[0].id
+      console.log("[Google Drive] Found in Drive Search:", folderId)
     } else {
+      console.log("[Google Drive] STEP 4: Creating folder")
       // 4. Create folder if not found
       console.log('[Google Drive] App folder not found, creating new one...')
       const createRes = await driveRequest('https://www.googleapis.com/drive/v3/files', {
@@ -165,13 +172,17 @@ export async function getOrCreateInventoryFolder(): Promise<string | null> {
     }
 
     if (folderId) {
+      console.log("[Google Drive] STEP 5: Saving metadata")
       // Save the discovered/created folderId permanently
       if (typeof window !== 'undefined') {
         localStorage.setItem(LOCAL_STORAGE_KEY, folderId)
       }
-      await supabase.auth.updateUser({
-        data: { driveFolderId: folderId }
-      })
+      
+      // TEMPORARILY DISABLED TO PREVENT INFINITE AUTH LOOPS
+      // await supabase.auth.updateUser({
+      //   data: { driveFolderId: folderId }
+      // })
+      console.log("[Google Drive] Skipping Supabase updateUser to prevent auth loop.")
       return folderId
     }
 
@@ -189,7 +200,15 @@ export async function fetchDriveInventory(): Promise<DriveFile[]> {
   console.log('[Google Drive] Starting inventory sync...')
   
   try {
-    const folderId = await getOrCreateInventoryFolder()
+    const timeoutPromise = new Promise<null>((_, reject) => {
+      setTimeout(() => reject(new Error('FOLDER_RESOLVE_TIMEOUT')), 10000)
+    })
+
+    const folderId = await Promise.race([
+      getOrCreateInventoryFolder(),
+      timeoutPromise
+    ]) as string | null
+
     if (!folderId) {
       console.error('[Google Drive] App folder not found or could not be created')
       throw new Error('FOLDER_NOT_FOUND')
@@ -211,15 +230,16 @@ export async function fetchDriveInventory(): Promise<DriveFile[]> {
     console.log(`[Google Drive] Sync success: found ${data.files?.length || 0} files`)
     return data.files || []
   } catch (error: any) {
-    if (error.name === 'AbortError') {
+    if (error.name === 'AbortError' || error.message === 'FOLDER_RESOLVE_TIMEOUT') {
       console.error('[Google Drive] Request timed out')
+      throw new Error('DRIVE_TIMEOUT')
     }
     if (error.message === 'AUTH_EXPIRED') {
       console.warn('[Google Drive] Auth expired during sync')
       throw error
     }
     console.error('[Google Drive] Unexpected sync error:', error)
-    return []
+    throw error
   }
 }
 
