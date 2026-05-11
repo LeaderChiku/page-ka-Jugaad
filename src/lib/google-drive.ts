@@ -26,21 +26,12 @@ export const MAX_FILE_SIZE = 25 * 1024 * 1024 // 25MB
  * This token is used to call Google APIs.
  */
 async function getGoogleToken() {
-  const supabase = createClient()
-  
-  // getSession() will automatically refresh the Supabase session if autoRefreshToken is true
-  console.log('[Google Drive] Fetching dynamic session...')
-  const { data: { session }, error } = await supabase.auth.getSession()
-  
-  if (error) {
-    console.error('[Google Drive] Supabase session error:', error)
-    return null
-  }
-
-  const token = session?.provider_token
+  console.log('[Google Drive] Fetching token from centralized store...')
+  const { useStudioStore } = await import('@/store/useStudioStore')
+  const token = useStudioStore.getState().providerToken
   
   if (!token) {
-    console.warn('[Google Drive] No Google provider token found in session.')
+    console.warn('[Google Drive] No Google provider token found in centralized state.')
     return null
   }
   
@@ -111,9 +102,17 @@ export async function getOrCreateInventoryFolder(): Promise<string | null> {
     }
 
     console.log("[Google Drive] STEP 2: Checking Supabase metadata")
-    // 2. Check Supabase user_metadata
+    // 2. Check Supabase user_metadata with a strict 3-second timeout to prevent deadlocks
     const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const userPromise = supabase.auth.getUser()
+    const timeoutPromise = new Promise<{data: {user: any}}>((_, reject) => 
+      setTimeout(() => reject(new Error('AUTH_TIMEOUT')), 3000)
+    )
+    
+    const { data: { user } } = await Promise.race([userPromise, timeoutPromise]).catch(() => {
+      console.warn('[Google Drive] Supabase getUser timed out or failed. Falling back.')
+      return { data: { user: null } }
+    })
     
     if (user?.user_metadata?.driveFolderId) {
       const metadataFolderId = user.user_metadata.driveFolderId

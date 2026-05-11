@@ -20,8 +20,10 @@ interface StudioState {
   randomLayoutData: { id: string, url: string, x: number, y: number, rotation: number, scale: number }[] | null
   isLoadingInventory: boolean
   syncError: string | null
+  providerToken: string | null
   
   // Actions
+  setProviderToken: (token: string | null) => void
   setInventory: (files: DriveFile[]) => void
   syncInventory: () => Promise<void>
   addImage: (file: DriveFile) => void
@@ -58,7 +60,9 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   randomLayoutData: null,
   isLoadingInventory: false,
   syncError: null,
+  providerToken: null,
 
+  setProviderToken: (token) => set({ providerToken: token }),
   setInventory: (files) => set({ inventory: files }),
   addImage: (file) => set((state) => ({ inventory: [...state.inventory, file] })),
   

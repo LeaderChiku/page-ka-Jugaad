@@ -14,6 +14,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient()
   const syncInventory = useStudioStore((state) => state.syncInventory)
   const clearInventory = useStudioStore((state) => state.clearInventory)
+  const setProviderToken = useStudioStore((state) => state.setProviderToken)
   const router = useRouter()
   const pathname = usePathname()
 
@@ -31,7 +32,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Handle login, token refresh, or initial session events
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
         if (session) {
-          console.log(`[AuthProvider] Session available for ${event}. Triggering inventory sync...`)
+          console.log(`[AuthProvider] Session available for ${event}. Saving token and triggering sync...`)
+          setProviderToken(session.provider_token ?? null)
           try {
             await syncInventory()
           } catch (error: any) {
@@ -39,6 +41,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } else {
           console.warn(`[AuthProvider] ${event} received but no session found.`)
+          if (event === 'INITIAL_SESSION' && pathname !== '/login' && pathname !== '/signup' && pathname !== '/') {
+            console.log('[AuthProvider] Unauthenticated INITIAL_SESSION on protected route. Redirecting...')
+            router.push('/login')
+          }
         }
       }
 

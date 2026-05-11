@@ -16,31 +16,8 @@ import { toast } from "sonner"
 
 export default function StudioPage() {
   const router = useRouter()
-  const [loading, setLoading] = React.useState(true)
   const [exporting, setExporting] = React.useState(false)
   const { paperSize, orientation } = useStudioStore()
-  React.useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const supabase = createClient()
-        console.log("StudioPage: Checking session...")
-        const { data: { session }, error } = await supabase.auth.getSession()
-        
-        if (error || !session) {
-          console.warn("StudioPage: No session found, redirecting to login")
-          router.push('/login')
-          return
-        }
-        console.log("StudioPage: Session verified")
-      } catch (err) {
-        console.error("StudioPage: Auth check error:", err)
-        router.push('/login')
-      } finally {
-        setLoading(false)
-      }
-    }
-    checkAuth()
-  }, [router])
 
   const handleExportPDF = async () => {
     const element = document.getElementById('studio-canvas-paper')
@@ -80,14 +57,6 @@ export default function StudioPage() {
     } finally {
       setExporting(false)
     }
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
-      </div>
-    )
   }
 
   return (
