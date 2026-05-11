@@ -113,7 +113,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   setSpacing: (spacing) => set({ spacing }),
   setShowOutlines: (showOutlines) => set({ showOutlines }),
   setIsPositioningUnlocked: (isPositioningUnlocked) => set({ isPositioningUnlocked }),
-  clearInventory: () => set({ inventory: [], selectedIds: [], imageTransforms: {}, randomLayoutData: null }),
+  clearInventory: () => set({ inventory: [], selectedIds: [], imageTransforms: {}, randomLayoutData: null, providerToken: null }),
   clearSelection: () => set({ selectedIds: [] }),
 
   generateRandomLayout: (count) => set((state) => {

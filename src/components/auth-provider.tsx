@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/client"
 import { useStudioStore } from "@/store/useStudioStore"
 import { useRouter, usePathname } from "next/navigation"
 
+const PROVIDER_TOKEN_KEY = 'pagekajugaad_provider_token'
+
 /**
  * AuthProvider handles global authentication state and session persistence.
  * It listens for Supabase auth events and triggers necessary side effects like
@@ -36,15 +38,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Handle login, token refresh, or initial session events
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
         if (session) {
-          const token = session.provider_token ?? null
-          console.log(`[AuthProvider] Session available for ${event}. Storing token...`)
+          // Resolve the best available provider token:
+          // A: fresh from session (most reliable, only present on SIGNED_IN / TOKEN_REFRESHED)
+          // B: persisted in localStorage (fallback for INITIAL_SESSION after page refresh)
+          let token: string | null = session.provider_token ?? null
+
+          if (token) {
+            console.log(`[AuthProvider] Using provider token from session (${event}).`)
+            // Persist so it survives future page refreshes
+            localStorage.setItem(PROVIDER_TOKEN_KEY, token)
+          } else {
+            // Supabase does NOT reliably return provider_token on INITIAL_SESSION after refresh
+            const cached = localStorage.getItem(PROVIDER_TOKEN_KEY)
+            if (cached) {
+              console.log(`[AuthProvider] Using provider token from localStorage fallback (${event}).`)
+              token = cached
+            } else {
+              console.warn(`[AuthProvider] No provider token available for ${event}. Sync will be skipped.`)
+            }
+          }
+
           setProviderToken(token)
 
           if (!token) {
-            console.warn(`[AuthProvider] No provider_token in session for ${event}. Skipping sync.`)
+            // No token anywhere — cannot sync Drive
           } else {
-            // Yield one microtask so Zustand can flush setProviderToken before syncInventory reads it.
-            // Without this, syncInventory's token guard would see providerToken as still null.
+            // Yield one microtask so Zustand flushes setProviderToken before syncInventory reads it
             await Promise.resolve()
             console.log(`[AuthProvider] Token stored. Triggering inventory sync...`)
             try {
@@ -64,7 +83,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Handle logout
       if (event === 'SIGNED_OUT') {
-        console.log('[AuthProvider] User signed out, clearing inventory...')
+        console.log('[AuthProvider] User signed out, clearing inventory and cached token...')
+        localStorage.removeItem(PROVIDER_TOKEN_KEY)
         clearInventory()
         
         // Refresh only if on a protected route to clear data from UI
