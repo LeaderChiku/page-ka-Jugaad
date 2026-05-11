@@ -19,6 +19,7 @@ interface StudioState {
   imageTransforms: Record<string, { zoom: number, x: number, y: number }>
   randomLayoutData: { id: string, url: string, x: number, y: number, rotation: number, scale: number }[] | null
   isLoadingInventory: boolean
+  syncError: string | null
   
   // Actions
   setInventory: (files: DriveFile[]) => void
@@ -56,6 +57,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   imageTransforms: {},
   randomLayoutData: null,
   isLoadingInventory: false,
+  syncError: null,
 
   setInventory: (files) => set({ inventory: files }),
   addImage: (file) => set((state) => ({ inventory: [...state.inventory, file] })),
@@ -137,17 +139,24 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     }
 
     console.log('[Store] Starting inventory sync...')
-    set({ isLoadingInventory: true })
+    set({ isLoadingInventory: true, syncError: null })
     try {
       const { fetchDriveInventory } = await import('@/lib/google-drive')
       const files = await fetchDriveInventory()
-      set({ inventory: files })
+      set({ inventory: files, syncError: null })
       console.log('[Store] Inventory sync completed successfully')
     } catch (error: any) {
       console.error('[Store] Failed to sync inventory:', error)
-      throw error // Re-throw to allow component to handle it
+      const errorMsg = error.message === 'DRIVE_TIMEOUT' 
+        ? 'Google Drive request timed out.' 
+        : error.message === 'AUTH_EXPIRED'
+        ? 'Google session expired.'
+        : 'Failed to sync with Google Drive.'
+      set({ syncError: errorMsg })
+      // We don't re-throw here because we want the UI to handle the syncError state
     } finally {
       set({ isLoadingInventory: false })
+      console.log('[Store] Loading state removed.')
     }
   }
 }))

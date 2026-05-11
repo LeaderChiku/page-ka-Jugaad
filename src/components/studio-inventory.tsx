@@ -32,7 +32,8 @@ export function StudioInventory() {
     toggleSelection, 
     clearInventory,
     syncInventory,
-    isLoadingInventory
+    isLoadingInventory,
+    syncError
   } = useStudioStore()
   const [search, setSearch] = React.useState("")
   const [uploading, setUploading] = React.useState(false)
@@ -179,6 +180,34 @@ export function StudioInventory() {
           <div className="flex flex-col items-center justify-center h-40 text-center space-y-4 text-zinc-500">
             <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
             <p className="text-sm font-medium animate-pulse">Syncing inventory...</p>
+          </div>
+        ) : syncError ? (
+          <div className="flex flex-col items-center justify-center h-52 text-center space-y-4 p-4">
+            <div className="p-3 bg-rose-50 dark:bg-rose-900/20 rounded-full">
+              <X className="h-6 w-6 text-rose-500" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-zinc-900 dark:text-white">Sync Failed</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">{syncError}</p>
+            </div>
+            <div className="flex flex-col w-full gap-2">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={handleRefresh}
+                className="w-full rounded-xl"
+              >
+                Retry Sync
+              </Button>
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                onClick={() => useStudioStore.setState({ syncError: null })}
+                className="w-full text-xs text-zinc-500"
+              >
+                Continue Offline
+              </Button>
+            </div>
           </div>
         ) : inventory.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 text-center space-y-2 text-zinc-500">

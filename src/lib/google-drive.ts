@@ -50,34 +50,53 @@ async function getGoogleToken() {
  * Generic wrapper for Google Drive API requests with automatic retry on 401.
  */
 async function driveRequest(url: string, options: RequestInit = {}, retryCount = 0): Promise<Response> {
-  const token = await getGoogleToken()
-  if (!token) {
-    throw new Error('AUTH_EXPIRED')
-  }
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => {
+    console.warn(`[Google Drive] Request timed out after 8s: ${url}`)
+    controller.abort()
+  }, 8000)
 
-  const headers = {
-    ...options.headers,
-    Authorization: `Bearer ${token}`
-  }
-
-  console.log(`[Google Drive] Requesting: ${url} (Retry: ${retryCount})`)
-  const response = await fetch(url, { ...options, headers })
-
-  if (response.status === 401 && retryCount === 0) {
-    console.warn('[Google Drive] 401 Unauthorized detected. Attempting silent session refresh...')
-    const supabase = createClient()
-    const { data: { session }, error } = await supabase.auth.refreshSession()
-    
-    if (error || !session?.provider_token) {
-      console.error('[Google Drive] Session refresh failed or no provider token after refresh.')
+  try {
+    const token = await getGoogleToken()
+    if (!token) {
       throw new Error('AUTH_EXPIRED')
     }
 
-    console.log('[Google Drive] Session refreshed successfully. Retrying request...')
-    return driveRequest(url, options, retryCount + 1)
-  }
+    const headers = {
+      ...options.headers,
+      Authorization: `Bearer ${token}`
+    }
 
-  return response
+    console.log(`[Google Drive] Request started: ${url} (Retry: ${retryCount})`)
+    const response = await fetch(url, { 
+      ...options, 
+      headers,
+      signal: controller.signal
+    })
+
+    if (response.status === 401 && retryCount === 0) {
+      console.warn('[Google Drive] 401 Unauthorized. Refreshing session...')
+      const supabase = createClient()
+      const { data: { session }, error } = await supabase.auth.refreshSession()
+      
+      if (error || !session?.provider_token) {
+        throw new Error('AUTH_EXPIRED')
+      }
+
+      console.log('[Google Drive] Session refreshed. Retrying...')
+      return driveRequest(url, options, retryCount + 1)
+    }
+
+    return response
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      console.error(`[Google Drive] Request aborted (timeout): ${url}`)
+      throw new Error('DRIVE_TIMEOUT')
+    }
+    throw error
+  } finally {
+    clearTimeout(timeoutId)
+  }
 }
 
 /**
