@@ -16,7 +16,7 @@ interface StudioState {
   spacing: number
   showOutlines: boolean
   isPositioningUnlocked: boolean
-  imageTransforms: Record<string, { zoom: number, x: number, y: number }>
+  imageTransforms: Record<string, { zoom: number, x: number, y: number, rotation: number }>
   randomLayoutData: { id: string, url: string, x: number, y: number, rotation: number, scale: number }[] | null
   isLoadingInventory: boolean
   syncError: string | null
@@ -27,7 +27,7 @@ interface StudioState {
   addImage: (file: DriveFile) => void
   removeImage: (id: string) => void
   toggleSelection: (id: string) => void
-  updateImageTransform: (id: string, transform: Partial<{ zoom: number, x: number, y: number }>) => void
+  updateImageTransform: (id: string, transform: Partial<{ zoom: number, x: number, y: number, rotation: number }>) => void
   setPaperSize: (size: PaperSize) => void
 
   setOrientation: (orientation: Orientation) => void
@@ -92,7 +92,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   }),
 
   updateImageTransform: (id, transform) => set((state) => {
-    const current = state.imageTransforms[id] || { zoom: 1, x: 0, y: 0 };
+    const current = state.imageTransforms[id] || { zoom: 1, x: 0, y: 0, rotation: 0 };
     return {
       imageTransforms: {
         ...state.imageTransforms,

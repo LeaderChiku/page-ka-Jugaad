@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useStudioStore, PaperSize, Orientation } from "@/store/useStudioStore"
 import { cn } from "@/lib/utils"
+import { RotateCw, RefreshCcw } from "lucide-react"
 
 const PAPER_RATIOS: Record<PaperSize, number> = {
   'A4': 1.414,
@@ -103,7 +104,11 @@ export function StudioCanvas() {
 
   // Advanced Positioning Handlers
   const [draggingId, setDraggingId] = React.useState<string | null>(null)
+  const [rotatingId, setRotatingId] = React.useState<string | null>(null)
   const [lastPos, setLastPos] = React.useState({ x: 0, y: 0 })
+  const [rotationCenter, setRotationCenter] = React.useState({ x: 0, y: 0 })
+  const [startAngle, setStartAngle] = React.useState(0)
+  const [initialRotation, setInitialRotation] = React.useState(0)
 
   const handleWheel = (e: React.WheelEvent, id: string) => {
     if (!isPositioningUnlocked || !id) return
@@ -117,26 +122,57 @@ export function StudioCanvas() {
 
   const handleMouseDown = (e: React.MouseEvent, id: string) => {
     if (!isPositioningUnlocked || !id) return
+    // Prevent dragging if we're clicking the rotate handle
+    if ((e.target as HTMLElement).closest('.rotate-handle')) return
+    
     setDraggingId(id)
     setLastPos({ x: e.clientX, y: e.clientY })
   }
 
+  const handleRotateMouseDown = (e: React.MouseEvent, id: string) => {
+    if (!isPositioningUnlocked || !id) return
+    e.preventDefault()
+    e.stopPropagation()
+
+    const slot = e.currentTarget.closest('.sticker-slot') as HTMLElement
+    if (!slot) return
+
+    const rect = slot.getBoundingClientRect()
+    const centerX = rect.left + rect.width / 2
+    const centerY = rect.top + rect.height / 2
+
+    setRotatingId(id)
+    setRotationCenter({ x: centerX, y: centerY })
+    setStartAngle(Math.atan2(e.clientY - centerY, e.clientX - centerX))
+    setInitialRotation(imageTransforms[id]?.rotation || 0)
+  }
+
   React.useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!draggingId) return
-      const dx = e.clientX - lastPos.x
-      const dy = e.clientY - lastPos.y
-      const transform = imageTransforms[draggingId] || { zoom: 1, x: 0, y: 0 }
-      updateImageTransform(draggingId, { 
-        x: transform.x + dx, 
-        y: transform.y + dy 
-      })
-      setLastPos({ x: e.clientX, y: e.clientY })
+      if (draggingId) {
+        const dx = e.clientX - lastPos.x
+        const dy = e.clientY - lastPos.y
+        const transform = imageTransforms[draggingId] || { zoom: 1, x: 0, y: 0, rotation: 0 }
+        updateImageTransform(draggingId, { 
+          x: transform.x + dx, 
+          y: transform.y + dy 
+        })
+        setLastPos({ x: e.clientX, y: e.clientY })
+      } else if (rotatingId) {
+        const currentAngle = Math.atan2(e.clientY - rotationCenter.y, e.clientX - rotationCenter.x)
+        const angleDiff = (currentAngle - startAngle) * (180 / Math.PI)
+        updateImageTransform(rotatingId, { 
+          rotation: (initialRotation + angleDiff) % 360 
+        })
+      }
     }
 
-    const handleMouseUp = () => setDraggingId(null)
+    const handleMouseUp = () => {
+      setDraggingId(null)
+      setRotatingId(null)
+    }
 
-    if (draggingId) {
+    if (draggingId || rotatingId) {
       window.addEventListener('mousemove', handleMouseMove)
       window.addEventListener('mouseup', handleMouseUp)
     }
@@ -144,7 +180,7 @@ export function StudioCanvas() {
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [draggingId, lastPos, imageTransforms, updateImageTransform])
+  }, [draggingId, rotatingId, lastPos, rotationCenter, startAngle, initialRotation, imageTransforms, updateImageTransform])
 
   return (
     <div className="flex-1 bg-zinc-100 dark:bg-zinc-950 flex items-center justify-center p-4 lg:p-12 overflow-auto custom-scrollbar relative">
@@ -205,13 +241,13 @@ export function StudioCanvas() {
               >
                 {Array.from({ length: gridCount }).map((_, i) => {
                   const item = displayItems[i]
-                  const transform = item?.id ? (imageTransforms[item.id] || { zoom: 1, x: 0, y: 0 }) : { zoom: 1, x: 0, y: 0 }
+                  const transform = item?.id ? (imageTransforms[item.id] || { zoom: 1, x: 0, y: 0, rotation: 0 }) : { zoom: 1, x: 0, y: 0, rotation: 0 }
                   
                   return (
                     <div 
                       key={i} 
                       className={cn(
-                        "rounded-sm flex items-center justify-center overflow-hidden bg-zinc-50/10 transition-colors relative group",
+                        "rounded-sm flex items-center justify-center overflow-hidden bg-zinc-50/10 transition-colors relative group sticker-slot",
                         showOutlines ? "border border-zinc-100 dark:border-zinc-800" : "border border-transparent",
                         isPositioningUnlocked && item?.id && "cursor-move ring-1 ring-inset ring-amber-500/20 hover:ring-amber-500/50"
                       )}
@@ -222,7 +258,7 @@ export function StudioCanvas() {
                         <div 
                           className="w-full h-full flex items-center justify-center transition-transform duration-75"
                           style={{
-                            transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.zoom})`,
+                            transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.zoom}) rotate(${transform.rotation}deg)`,
                           }}
                         >
                           <img 
@@ -237,6 +273,18 @@ export function StudioCanvas() {
                               padding: '2px'
                             }}
                           />
+
+                          {/* Rotation Handle */}
+                          {isPositioningUnlocked && (
+                            <button
+                              onMouseDown={(e) => handleRotateMouseDown(e, item.id)}
+                              onDoubleClick={() => updateImageTransform(item.id, { rotation: 0 })}
+                              className="rotate-handle absolute bottom-2 right-2 p-2 bg-indigo-600 text-white rounded-full shadow-lg shadow-indigo-500/40 hover:scale-110 active:scale-95 transition-all opacity-0 group-hover:opacity-100 z-10 cursor-alias border-none"
+                              title="Drag to rotate • Double-click to reset"
+                            >
+                              <RotateCw className="h-3 w-3" />
+                            </button>
+                          )}
                         </div>
                       ) : (
                         showOutlines && (
