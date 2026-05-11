@@ -281,7 +281,6 @@ export function StudioCanvas() {
                               onDoubleClick={() => updateImageTransform(item.id, { rotation: 0 })}
                               className="rotate-handle absolute bottom-2 right-2 p-2 bg-indigo-600 text-white rounded-full shadow-lg shadow-indigo-500/40 hover:scale-110 active:scale-95 transition-all opacity-0 group-hover:opacity-100 z-10 cursor-alias border-none"
                               title="Drag to rotate • Double-click to reset"
-                              data-html2canvas-ignore="true"
                             >
                               <RotateCw className="h-3 w-3" />
                             </button>
@@ -305,10 +304,7 @@ export function StudioCanvas() {
 
 
           {/* Paper Info Overlay (Only visible in UI, not export) */}
-          <div 
-            className="absolute -top-16 left-0 right-0 flex items-end justify-between text-zinc-400 font-bold font-mono tracking-[0.2em] pointer-events-none select-none px-2 paper-info-overlay"
-            data-html2canvas-ignore="true"
-          >
+          <div className="absolute -top-16 left-0 right-0 flex items-end justify-between text-zinc-400 font-bold font-mono tracking-[0.2em] pointer-events-none select-none px-2">
             <div className="flex flex-col gap-1">
               <span className="text-xl text-zinc-900 dark:text-white flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-indigo-500 animate-pulse"></div>

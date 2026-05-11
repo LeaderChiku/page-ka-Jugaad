@@ -12,7 +12,6 @@ import { FileDown, Loader2 } from "lucide-react"
 import html2canvas from "html2canvas"
 import jsPDF from "jspdf"
 import { useStudioStore } from "@/store/useStudioStore"
-import { toast } from "sonner"
 
 export default function StudioPage() {
   const router = useRouter()
@@ -44,29 +43,22 @@ export default function StudioPage() {
 
   const handleExportPDF = async () => {
     const element = document.getElementById('studio-canvas-paper')
-    if (!element) {
-      toast.error("Export area not found.")
-      return
-    }
+    if (!element) return
 
-    toast.loading("Generating high-resolution PDF...", { id: "export-pdf" })
     setExporting(true)
-    
     try {
-      // Capture with high quality
+      // Create a clean version for export (optional: remove UI-only elements if any)
       const canvas = await html2canvas(element, {
-        scale: 4, // 4x scale for print quality
+        scale: 4, // Ultra high quality for print
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
-        allowTaint: true,
-        imageTimeout: 15000,
       })
       
       const imgData = canvas.toDataURL('image/png', 1.0)
       const isPortrait = orientation === 'portrait'
       
-      // jsPDF instance with exact paper size
+      // jsPDF instance
       const pdf = new jsPDF({
         orientation: isPortrait ? 'p' : 'l',
         unit: 'mm',
@@ -78,14 +70,9 @@ export default function StudioPage() {
 
       // Add image to cover the full PDF page
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST')
-      
-      const fileName = `page-ka-jugaad-${paperSize.toLowerCase()}-${orientation}-${Date.now()}.pdf`
-      pdf.save(fileName)
-      
-      toast.success("PDF exported successfully!", { id: "export-pdf" })
+      pdf.save(`Layout-${paperSize}-${orientation}-${Date.now()}.pdf`)
     } catch (err) {
       console.error("PDF Export failed:", err)
-      toast.error("Failed to generate PDF. Please try again.", { id: "export-pdf" })
     } finally {
       setExporting(false)
     }
