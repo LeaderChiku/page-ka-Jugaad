@@ -18,8 +18,11 @@ interface StudioState {
   isPositioningUnlocked: boolean
   imageTransforms: Record<string, { zoom: number, x: number, y: number }>
   randomLayoutData: { id: string, url: string, x: number, y: number, rotation: number, scale: number }[] | null
+  isLoadingInventory: boolean
   
   // Actions
+  setInventory: (files: DriveFile[]) => void
+  syncInventory: () => Promise<void>
   addImage: (file: DriveFile) => void
   removeImage: (id: string) => void
   toggleSelection: (id: string) => void
@@ -52,7 +55,9 @@ export const useStudioStore = create<StudioState>((set) => ({
   isPositioningUnlocked: false,
   imageTransforms: {},
   randomLayoutData: null,
+  isLoadingInventory: false,
 
+  setInventory: (files) => set({ inventory: files }),
   addImage: (file) => set((state) => ({ inventory: [...state.inventory, file] })),
   
   removeImage: (id) => set((state) => {
@@ -124,6 +129,20 @@ export const useStudioStore = create<StudioState>((set) => ({
     return { randomLayoutData: randomItems, arrangementMode: 'sequential' }; // Switch to sequential but show random data
   }),
   clearRandomLayout: () => set({ randomLayoutData: null }),
+  
+  syncInventory: async () => {
+    const { fetchDriveInventory } = await import('@/lib/google-drive')
+    set({ isLoadingInventory: true })
+    try {
+      const files = await fetchDriveInventory()
+      set({ inventory: files })
+    } catch (error) {
+      console.error('Failed to sync inventory:', error)
+      throw error
+    } finally {
+      set({ isLoadingInventory: false })
+    }
+  }
 }))
 
 

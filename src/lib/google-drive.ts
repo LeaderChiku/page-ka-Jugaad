@@ -26,6 +26,8 @@ export const MAX_FILE_SIZE = 25 * 1024 * 1024 // 25MB
  */
 async function getGoogleToken() {
   const supabase = createClient()
+  
+  // getSession() will automatically refresh the Supabase session if autoRefreshToken is true
   const { data: { session }, error } = await supabase.auth.getSession()
   
   if (error) {
@@ -33,12 +35,14 @@ async function getGoogleToken() {
     return null
   }
 
-  if (!session?.provider_token) {
-    console.warn('No Google provider token found. User might need to re-log in with Google.')
+  const token = session?.provider_token
+  
+  if (!token) {
+    console.warn('No Google provider token found in session. User may need to re-authenticate.')
     return null
   }
   
-  return session.provider_token
+  return token
 }
 
 /**

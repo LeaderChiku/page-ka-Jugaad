@@ -24,25 +24,28 @@ import {
 } from "@/components/ui/dialog"
 
 export function StudioInventory() {
-  const { inventory, selectedIds, addImage, removeImage, toggleSelection, clearInventory } = useStudioStore()
+  const { 
+    inventory, 
+    selectedIds, 
+    addImage, 
+    removeImage, 
+    toggleSelection, 
+    clearInventory,
+    syncInventory,
+    isLoadingInventory
+  } = useStudioStore()
   const [search, setSearch] = React.useState("")
-  const [loading, setLoading] = React.useState(true)
   const [uploading, setUploading] = React.useState(false)
   const [deleteItem, setDeleteItem] = React.useState<DriveFile | null>(null)
   const [deleting, setDeleting] = React.useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
-  // Sync inventory with Google Drive on mount
-  const syncInventory = React.useCallback(async () => {
-    setLoading(true)
+  // Trigger sync on click of a refresh button or handle via global auth state
+  // Here we keep the manual refresh logic if needed, but the AuthProvider handles initial load.
+  const handleRefresh = async () => {
     try {
-      const files = await fetchDriveInventory()
-      clearInventory() // Clear local state first to sync properly
-      files.forEach(file => {
-        addImage(file)
-      })
+      await syncInventory()
     } catch (err: any) {
-      console.error("Sync failed", err)
       if (err.message === 'AUTH_EXPIRED') {
         toast.error("Google session expired.", {
           description: "Please log out and log in again to reconnect your Drive."
@@ -50,14 +53,8 @@ export function StudioInventory() {
       } else {
         toast.error("Failed to sync with Google Drive.")
       }
-    } finally {
-      setLoading(false)
     }
-  }, [addImage, clearInventory])
-
-  React.useEffect(() => {
-    syncInventory()
-  }, [syncInventory])
+  }
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
@@ -137,7 +134,7 @@ export function StudioInventory() {
       <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Inventory</h2>
-          {loading && <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />}
+          {isLoadingInventory && <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />}
         </div>
         
         <div className="relative">
@@ -175,7 +172,7 @@ export function StudioInventory() {
       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
 
 
-        {inventory.length === 0 && !loading ? (
+        {inventory.length === 0 && !isLoadingInventory ? (
           <div className="flex flex-col items-center justify-center h-40 text-center space-y-2 text-zinc-500">
             <ImageIcon className="h-8 w-8 opacity-20" />
             <p className="text-sm">No images yet.<br/>Upload to your Drive.</p>
