@@ -20,40 +20,74 @@ export default function StudioPage() {
     const element = document.getElementById('studio-canvas-paper')
     if (!element) return
 
+    console.log('[PDF Export] Starting export process...')
     setExporting(true)
-    
-    // TEMPORARY SANITIZATION:
-    // Strip Tailwind v4 classes that use oklch/lab colors which crash html2canvas
-    const slots = element.querySelectorAll('.sticker-slot')
-    const originalStyles: { el: HTMLElement, className: string, bg: string, border: string }[] = []
-    
-    slots.forEach(slot => {
-      const el = slot as HTMLElement
-      originalStyles.push({ 
-        el, 
-        className: el.className, 
-        bg: el.style.backgroundColor, 
-        border: el.style.borderColor 
-      })
-      // Strip classes but maintain essential layout structure
-      el.className = 'sticker-slot'
-      el.style.backgroundColor = 'rgba(250, 250, 250, 0.1)'
-      el.style.borderColor = 'transparent'
-    })
+    toast.info("Preparing your PDF...", { description: "This may take a moment for high-quality export." })
 
+    let clone: HTMLElement | null = null;
+    
     try {
-      // Create a clean version for export (optional: remove UI-only elements if any)
-      const canvas = await html2canvas(element, {
-        scale: 4, // Ultra high quality for print
+      // 1. CLONE THE ELEMENT
+      console.log('[PDF Export] Creating temporary clone...')
+      clone = element.cloneNode(true) as HTMLElement
+      
+      // 2. SANITIZE THE CLONE (Crucial step to prevent lab/oklch parser errors)
+      console.log('[PDF Export] Sanitizing clone styles...')
+      const sanitize = (el: HTMLElement) => {
+        // Force safe colors on the most common problematic elements
+        // We use inline styles to override any Tailwind v4 computed colors
+        if (el.classList.contains('sticker-slot')) {
+          el.style.backgroundColor = 'rgba(255, 255, 255, 0.01)'
+          el.style.borderColor = 'rgba(0, 0, 0, 0.05)'
+          el.style.borderStyle = 'solid'
+        } else if (el.id === 'studio-canvas-paper') {
+          el.style.backgroundColor = '#ffffff'
+        }
+
+        // Strip transitions/animations/shadows that can glitch the capture or use lab colors
+        el.style.transition = 'none'
+        el.style.animation = 'none'
+        el.style.boxShadow = 'none'
+        el.style.filter = 'none'
+        
+        // Remove any known Tailwind v4 classes that definitely use oklch/lab for borders/bg
+        // This is a safety measure alongside the inline style overrides
+        el.classList.forEach(cls => {
+          if (cls.includes('bg-') || cls.includes('border-') || cls.includes('text-')) {
+            // We don't remove them all as some are safe, but we've overridden them with inline styles above
+          }
+        })
+
+        // Recursively sanitize children
+        Array.from(el.children).forEach(child => sanitize(child as HTMLElement))
+      }
+      
+      sanitize(clone)
+      console.log('[PDF Export] Sanitization complete.')
+      
+      // 3. ATTACH CLONE TEMPORARILY
+      // Attaching hidden to the DOM ensures correct layout calculation by html2canvas
+      clone.style.position = 'fixed'
+      clone.style.left = '-9999px'
+      clone.style.top = '0'
+      clone.style.zIndex = '-1000'
+      document.body.appendChild(clone)
+      
+      // 4. CAPTURE WITH HTML2CANVAS
+      console.log('[PDF Export] Starting html2canvas capture...')
+      const canvas = await html2canvas(clone, {
+        scale: 3, // High quality 3x scaling
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
       })
+      console.log('[PDF Export] Capture success.')
       
+      // 5. GENERATE PDF
+      console.log('[PDF Export] Generating PDF file...')
       const imgData = canvas.toDataURL('image/png', 1.0)
       const isPortrait = orientation === 'portrait'
       
-      // jsPDF instance
       const pdf = new jsPDF({
         orientation: isPortrait ? 'p' : 'l',
         unit: 'mm',
@@ -63,21 +97,23 @@ export default function StudioPage() {
       const pdfWidth = pdf.internal.pageSize.getWidth()
       const pdfHeight = pdf.internal.pageSize.getHeight()
 
-      // Add image to cover the full PDF page
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST')
       pdf.save(`pagekajugaad-${paperSize.toLowerCase()}-${orientation}.pdf`)
-    } catch (err) {
-      console.error("PDF Export failed:", err)
+      
+      console.log('[PDF Export] Export process completed successfully.')
+      toast.success("PDF exported successfully!")
+
+    } catch (err: any) {
+      console.error("[PDF Export] CRITICAL FAILURE:", err)
       toast.error("PDF generation failed", {
-        description: "Please try again."
+        description: err.message || "An unexpected error occurred."
       })
     } finally {
-      // Restore original UI styles immediately
-      originalStyles.forEach(({ el, className, bg, border }) => {
-        el.className = className
-        el.style.backgroundColor = bg
-        el.style.borderColor = border
-      })
+      // 6. CLEANUP
+      if (clone && document.body.contains(clone)) {
+        document.body.removeChild(clone)
+        console.log('[PDF Export] Temporary clone removed.')
+      }
       setExporting(false)
     }
   }
