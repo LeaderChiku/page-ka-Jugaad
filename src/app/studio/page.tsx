@@ -32,28 +32,61 @@ export default function StudioPage() {
       console.log('[PDF Export] Creating isolated clone...')
       clone = element.cloneNode(true) as HTMLElement
       
-      // 2. SANITIZE THE CLONE (Remove problematic lab/oklch colors)
-      console.log('[PDF Export] Sanitizing clone tree...')
-      const sanitize = (el: HTMLElement) => {
-        // Force safe colors on common problematic elements
+      // 2. REAL IDENTIFICATION LOGIC (Deep Inspection)
+      console.log('[PDF Debug] Starting deep CSS inspection on all nodes...')
+      const allNodes = [clone, ...Array.from(clone.querySelectorAll('*'))] as HTMLElement[]
+      let offendingCount = 0
+
+      allNodes.forEach((node) => {
+        const computed = window.getComputedStyle(node)
+        // Use the CSSStyleDeclaration iterator to check EVERY property
+        for (let i = 0; i < computed.length; i++) {
+          const prop = computed[i]
+          const value = computed.getPropertyValue(prop)
+          
+          if (value && (
+            value.includes('lab(') || 
+            value.includes('oklch(') || 
+            value.includes('lch(') || 
+            value.includes('color-mix(')
+          )) {
+            offendingCount++
+            console.error('[PDF Debug] IDENTIFIED OFFENDING PROPERTY:', {
+              tagName: node.tagName,
+              className: node.className,
+              property: prop,
+              originalValue: value
+            })
+            
+            // Apply immediate 'important' override to the inline style
+            // This is the only way to guarantee html2canvas sees a safe value
+            if (prop.includes('color') || prop === 'fill' || prop === 'stroke') {
+              node.style.setProperty(prop, 'rgba(0,0,0,0)', 'important')
+            } else {
+              node.style.setProperty(prop, 'none', 'important')
+            }
+          }
+        }
+      })
+      
+      console.log(`[PDF Debug] Inspection complete. Found and patched ${offendingCount} offending properties.`)
+
+      // Explicit cleanup for Studio-specific structural elements
+      const sanitizeStructure = (el: HTMLElement) => {
         if (el.classList.contains('sticker-slot')) {
-          el.style.backgroundColor = 'rgba(255, 255, 255, 0.01)'
-          el.style.borderColor = 'rgba(0, 0, 0, 0.05)'
-          el.style.borderStyle = 'solid'
+          el.style.setProperty('background-color', 'transparent', 'important')
+          el.style.setProperty('border-color', 'rgba(0,0,0,0.1)', 'important')
         } else if (el.id === 'studio-canvas-paper') {
-          el.style.backgroundColor = '#ffffff'
+          el.style.setProperty('background-color', '#ffffff', 'important')
         }
 
-        // Strip transitions/animations/shadows that can glitch capture or use lab colors
         el.style.transition = 'none'
         el.style.animation = 'none'
-        el.style.boxShadow = 'none'
-        el.style.filter = 'none'
         
-        Array.from(el.children).forEach(child => sanitize(child as HTMLElement))
+        Array.from(el.children).forEach(child => sanitizeStructure(child as HTMLElement))
       }
       
-      sanitize(clone)
+      sanitizeStructure(clone)
       console.log('[PDF Export] Sanitization complete.')
       
       // 3. ATTACH CLONE TEMPORARILY
