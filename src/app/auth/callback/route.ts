@@ -11,18 +11,36 @@ export async function GET(request: Request) {
     const supabase = await createClient()
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     
+    if (error) {
+      console.error('[Auth Callback] Exchange error:', error.message)
+    }
+
     if (!error && data.session) {
       const { provider_token, provider_refresh_token } = data.session
       
+      console.log('[Auth Callback] Session established.', { 
+        hasProviderToken: !!provider_token, 
+        hasProviderRefreshToken: !!provider_refresh_token,
+        user: data.session.user.email 
+      })
+
       // Persist provider tokens to user_metadata so they are available in the session 
       // after redirect and refresh (since Supabase doesn't store them in cookies by default)
       if (provider_token) {
-        await supabase.auth.updateUser({
+        console.log('[Auth Callback] Persisting provider tokens to user_metadata...')
+        const { error: updateError } = await supabase.auth.updateUser({
           data: {
             google_provider_token: provider_token,
             google_refresh_token: provider_refresh_token
           }
         })
+        if (updateError) {
+          console.error('[Auth Callback] Failed to update user metadata:', updateError.message)
+        } else {
+          console.log('[Auth Callback] User metadata updated successfully.')
+        }
+      } else {
+        console.warn('[Auth Callback] No provider_token received in exchange!')
       }
 
       const forwardedHost = request.headers.get('x-forwarded-host') // original origin before load balancer
