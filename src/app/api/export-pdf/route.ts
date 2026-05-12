@@ -34,12 +34,14 @@ export async function POST(req: NextRequest) {
     }
 
     browser = await puppeteer.launch({
-      args: isLocal ? [] : chromium.args,
-      defaultViewport: chromium.defaultViewport,
+      args: isLocal ? [] : (chromium as any).args,
+      defaultViewport: {
+        width: 1280,
+        height: 720,
+      },
       executablePath,
-      headless: isLocal ? true : chromium.headless,
-      ignoreHTTPSErrors: true,
-    })
+      headless: true,
+    } as any)
 
     const page = await browser.newPage()
     console.log('[PDF Export] Chromium launched')
@@ -67,7 +69,7 @@ export async function POST(req: NextRequest) {
 
     console.log('[PDF Export] HTML injected')
     await page.setContent(fullHtml, {
-      waitUntil: 'networkidle0',
+      waitUntil: 'networkidle0' as any,
       timeout: 30000
     })
 
@@ -91,7 +93,7 @@ export async function POST(req: NextRequest) {
     console.log('[PDF Export] PDF generated successfully')
 
     // 4. RETURN RESPONSE
-    return new NextResponse(pdfBuffer, {
+    return new NextResponse(pdfBuffer as any, {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="export.pdf"`,
