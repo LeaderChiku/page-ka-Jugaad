@@ -16,9 +16,24 @@ export default function StudioPage() {
 
   const handleExportPDF = async () => {
     const element = document.getElementById('studio-canvas-paper')
-    if (!element) return
+    if (!element) {
+      console.error('[PDF FLOW] CRITICAL ERROR: studio-canvas-paper element NOT FOUND')
+      return
+    }
 
-    console.log('[PDF Export] Starting server-side PDF generation...')
+    console.log('[PDF FLOW] Button clicked - handleExportPDF triggered')
+    console.log('[PDF FLOW] Trace ID: ' + Date.now())
+    console.log('[PDF FLOW] Current logic: Puppeteer server-side export')
+    
+    // Safety check: Is html2canvas somehow leaked into global scope?
+    if (typeof (window as any).html2canvas !== 'undefined') {
+      console.warn('[PDF FLOW] WARNING: html2canvas found in global scope! This should not happen.')
+    } else {
+      console.log('[PDF FLOW] GLOBAL CHECK: html2canvas is NOT present in global scope.')
+    }
+
+    console.log('[PDF FLOW] Starting server-side PDF generation...')
+    
     setExporting(true)
     toast.info("Generating high-quality PDF...", { description: "Using server-side Puppeteer for maximum stability." })
 
@@ -46,7 +61,7 @@ export default function StudioPage() {
         .join('\n')
 
       // 2. SEND TO API
-      console.log('[PDF Export] Sending request to server...')
+      console.log('[PDF FLOW] Attempting fetch to /api/export-pdf...')
       const response = await fetch('/api/export-pdf', {
         method: 'POST',
         headers: {
@@ -70,10 +85,12 @@ export default function StudioPage() {
       }
 
       // 3. RECEIVE & DOWNLOAD
-      console.log('[PDF Export] PDF received. Triggering download...')
+      console.log(`[PDF FLOW] Response received: status=${response.status}`)
       const pdfBlob = await response.blob()
+      console.log(`[PDF FLOW] Blob received: size=${pdfBlob.size} bytes`)
       blobUrl = URL.createObjectURL(pdfBlob)
       
+      console.log('[PDF FLOW] Triggering browser download via <a> element...')
       const link = document.createElement('a')
       link.href = blobUrl
       link.download = `pagekajugaad-${paperSize.toLowerCase()}-${orientation}.pdf`
@@ -81,8 +98,9 @@ export default function StudioPage() {
       link.click()
       document.body.removeChild(link)
 
+      console.log('[PDF FLOW] Download triggered successfully.')
       toast.success("PDF exported successfully!")
-      console.log('[PDF Export] Export process complete.')
+      console.log('[PDF FLOW] Export process COMPLETE.')
 
     } catch (err: any) {
       console.error("[PDF Export] CRITICAL FAILURE:", err)
