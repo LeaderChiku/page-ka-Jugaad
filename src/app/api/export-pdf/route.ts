@@ -22,26 +22,23 @@ export async function POST(req: NextRequest) {
     // Determine if we are running in a local environment or Vercel
     const isLocal = process.env.NODE_ENV === 'development' || !process.env.VERCEL
     
-    // Attempt to find chrome on Windows if local
-    let executablePath = await chromium.executablePath()
+    let executablePath = ''
     if (isLocal) {
       if (process.platform === 'win32') {
         executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
       } else {
-        // Fallback for other local OS if needed
         executablePath = '/usr/bin/google-chrome'
       }
+    } else {
+      executablePath = await chromium.executablePath()
     }
 
     browser = await puppeteer.launch({
-      args: isLocal ? [] : (chromium as any).args,
-      defaultViewport: {
-        width: 1280,
-        height: 720,
-      },
+      args: isLocal ? [] : chromium.args,
+      defaultViewport: chromium.defaultViewport || { width: 1280, height: 720 },
       executablePath,
-      headless: true,
-    } as any)
+      headless: chromium.headless,
+    })
 
     const page = await browser.newPage()
     console.log('[PDF Export] Chromium launched')
