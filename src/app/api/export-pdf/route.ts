@@ -41,7 +41,13 @@ export async function POST(req: NextRequest) {
     }
 
     browser = await puppeteer.launch({
-      args: isLocal ? [] : [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
+      args: isLocal ? [] : [
+        ...chromium.args, 
+        '--no-sandbox', 
+        '--disable-setuid-sandbox',
+        '--force-device-scale-factor=4', 
+        '--high-dpi-support=1'
+      ],
       defaultViewport: { width: 1280, height: 720 },
       executablePath,
       headless: true,
@@ -90,10 +96,19 @@ export async function POST(req: NextRequest) {
               print-color-adjust: exact;
               width: ${dimensions?.width ? dimensions.width + 'px' : 'auto'};
               height: ${dimensions?.height ? dimensions.height + 'px' : 'auto'};
+              color-interpolation-filters: sRGB;
             }
             * { box-sizing: border-box; }
             @page { margin: 0; }
             
+            /* Force high-quality image rendering */
+            img {
+              image-rendering: -webkit-optimize-contrast;
+              image-rendering: crisp-edges;
+              -ms-interpolation-mode: bicubic;
+              shape-rendering: geometricPrecision;
+            }
+
             /* Injected styles from the client */
             ${css || ''}
           </style>
@@ -109,11 +124,11 @@ export async function POST(req: NextRequest) {
 
     console.log('[PDF Export] HTML prepared and URLs resolved')
     
-    // Use a larger viewport to ensure no wrapping issues
+    // Use a much larger deviceScaleFactor for print-grade quality
     await page.setViewport({
       width: dimensions?.width || 1280,
       height: dimensions?.height || 720,
-      deviceScaleFactor: 2, // High DPI for better quality
+      deviceScaleFactor: 4, 
     })
 
     await page.setContent(fullHtml, {
