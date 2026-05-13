@@ -35,9 +35,12 @@ export async function POST(req: NextRequest) {
 
     browser = await puppeteer.launch({
       args: isLocal ? [] : chromium.args,
-      defaultViewport: chromium.defaultViewport || { width: 1280, height: 720 },
       executablePath,
-      headless: chromium.headless,
+      headless: chromium.headless as any,
+      defaultViewport: {
+        width: 1280,
+        height: 720,
+      },
     })
 
     const page = await browser.newPage()
