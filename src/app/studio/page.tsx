@@ -33,8 +33,9 @@ export default function StudioPage() {
       const clone = element.cloneNode(true) as HTMLElement
       
       // Deep cleanup of UI-only elements
-      // Remove rotation handles, slot outlines (if not wanted), and paper info overlays
-      clone.querySelectorAll('.rotate-handle, .paper-info-overlay, .pointer-events-none').forEach(el => el.remove())
+      // Remove rotation handles and paper info overlays
+      // We avoid removing .pointer-events-none globally because the stickers themselves use it
+      clone.querySelectorAll('.rotate-handle, .paper-info-overlay, button, [role="button"]').forEach(el => el.remove())
       
       // Preserve the exact computed dimensions and styles
       clone.style.width = element.offsetWidth + 'px'

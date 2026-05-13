@@ -101,12 +101,11 @@ export async function POST(req: NextRequest) {
             * { box-sizing: border-box; }
             @page { margin: 0; }
             
-            /* Force high-quality image rendering */
+            /* Standard image rendering for better compositing */
             img {
-              image-rendering: -webkit-optimize-contrast;
-              image-rendering: crisp-edges;
-              -ms-interpolation-mode: bicubic;
-              shape-rendering: geometricPrecision;
+              max-width: 100%;
+              height: auto;
+              display: block;
             }
 
             /* Injected styles from the client */
@@ -138,7 +137,7 @@ export async function POST(req: NextRequest) {
 
     // CRITICAL: Wait for all images to be fully loaded and decoded
     console.log('[PDF Export] Waiting for images and fonts...')
-    await page.evaluate(async () => {
+    const debugStats = await page.evaluate(async () => {
       const images = Array.from(document.querySelectorAll('img'))
       await Promise.all([
         document.fonts.ready,
@@ -150,10 +149,22 @@ export async function POST(req: NextRequest) {
           })
         })
       ])
+      return { 
+        imageCount: images.length,
+        visibleImages: images.filter(img => img.offsetWidth > 0).length,
+        sources: images.map(img => img.src.substring(0, 50) + '...')
+      }
     })
+    console.log('[PDF Export] Render Stats:', debugStats)
+
+    // DEBUG: Take a screenshot to verify what Puppeteer "sees"
+    if (process.env.NODE_ENV === 'development') {
+      await page.screenshot({ path: 'debug-export-render.png', fullPage: true })
+      console.log('[PDF Export] Debug screenshot saved to debug-export-render.png')
+    }
 
     // Give a small extra buffer for any CSS transitions or final layout shifts
-    await new Promise(r => setTimeout(r, 500))
+    await new Promise(r => setTimeout(r, 1000))
 
     // 3. GENERATE PDF
     console.log('[PDF Export] Generating PDF buffer...')
