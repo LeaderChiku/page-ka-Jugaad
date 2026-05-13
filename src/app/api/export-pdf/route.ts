@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
     console.log('[PDF Export] PDF generated successfully')
 
     // 4. RETURN RESPONSE
-    return new NextResponse(pdfBuffer, {
+    return new NextResponse(Buffer.from(pdfBuffer), {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="export.pdf"`,
