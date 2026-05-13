@@ -76,10 +76,17 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. SET CONTENT & WAIT
-    const origin = new URL(req.url).origin
+    // Use the request host to build a reliable absolute origin for image fetching
+    const protocol = req.headers.get('x-forwarded-proto') || 'http'
+    const host = req.headers.get('host')
+    const origin = `${protocol}://${host}`
     
     // Construct full HTML document with injected styles
-    // We resolve all relative URLs to absolute URLs so Puppeteer can fetch them
+    // We use mm units for the container to ensure it fills the A4 page correctly
+    const isPortrait = orientation !== 'landscape'
+    const pageWidth = isPortrait ? '210mm' : '297mm'
+    const pageHeight = isPortrait ? '297mm' : '210mm'
+
     const fullHtml = `
       <!DOCTYPE html>
       <html>
@@ -88,19 +95,30 @@ export async function POST(req: NextRequest) {
           <meta name="viewport" content="width=device-width, initial-scale=1">
           <style>
             /* Base styles for PDF rendering */
-            body { 
+            html, body { 
               margin: 0; 
               padding: 0; 
               background: white; 
+              width: ${pageWidth};
+              height: ${pageHeight};
               -webkit-print-color-adjust: exact; 
               print-color-adjust: exact;
-              width: ${dimensions?.width ? dimensions.width + 'px' : 'auto'};
-              height: ${dimensions?.height ? dimensions.height + 'px' : 'auto'};
               color-interpolation-filters: sRGB;
             }
             * { box-sizing: border-box; }
-            @page { margin: 0; }
+            @page { 
+              margin: 0; 
+              size: ${paperSize || 'A4'} ${orientation || 'portrait'};
+            }
             
+            /* Ensure the layout container fills the paper */
+            #export-container {
+              width: 100%;
+              height: 100%;
+              position: relative;
+              overflow: hidden;
+            }
+
             /* Standard image rendering for better compositing */
             img {
               max-width: 100%;
@@ -113,24 +131,30 @@ export async function POST(req: NextRequest) {
           </style>
         </head>
         <body>
-          ${html}
+          <div id="export-container">
+            ${html}
+          </div>
         </body>
       </html>
     `
-    // Resolve relative URLs for images and other assets
-    .replace(/src="\//g, `src="${origin}/`)
-    .replace(/href="\//g, `href="${origin}/`)
+    // Robust Absolute URL Resolution
+    // We catch all src="/..." and replace with the full origin
+    const resolvedHtml = fullHtml.replace(/src="\/api\/drive-image\?id=([^"]+)"/g, (match, id) => {
+      const absoluteUrl = `${origin}/api/drive-image?id=${id}`
+      console.log(`[PDF Export] Resolving image ID ${id} -> ${absoluteUrl}`)
+      return `src="${absoluteUrl}"`
+    })
 
     console.log('[PDF Export] HTML prepared and URLs resolved')
     
-    // Use a much larger deviceScaleFactor for print-grade quality
+    // Use a high-res viewport matching the A4 aspect ratio
     await page.setViewport({
-      width: dimensions?.width || 1280,
-      height: dimensions?.height || 720,
-      deviceScaleFactor: 4, 
+      width: isPortrait ? 794 : 1123, // A4 at 96 DPI
+      height: isPortrait ? 1123 : 794,
+      deviceScaleFactor: 2, 
     })
 
-    await page.setContent(fullHtml, {
+    await page.setContent(resolvedHtml, {
       waitUntil: ['networkidle0', 'load', 'domcontentloaded'] as any,
       timeout: 30000
     })

@@ -38,13 +38,18 @@ export default function StudioPage() {
       clone.querySelectorAll('.rotate-handle, .paper-info-overlay, button, [role="button"]').forEach(el => el.remove())
       
       // Preserve the exact computed dimensions and styles
-      clone.style.width = element.offsetWidth + 'px'
-      clone.style.height = element.offsetHeight + 'px'
+      // We force it to fill the target paper container (100%) during export
+      clone.style.width = '100%'
+      clone.style.height = '100%'
       clone.style.margin = '0'
       clone.style.boxShadow = 'none'
       clone.style.position = 'relative'
       clone.style.overflow = 'hidden'
-
+      clone.style.backgroundColor = '#ffffff' // Ensure white background for PDF
+      
+      // Remove any fixed dimensions that might be on the ID directly
+      clone.removeAttribute('id') 
+      
       const html = clone.outerHTML
       
       // Advanced CSS Collection: Extract all rules from all stylesheets
