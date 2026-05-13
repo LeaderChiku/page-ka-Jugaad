@@ -311,7 +311,7 @@ export function StudioCanvas() {
 
 
           {/* Paper Info Overlay (Only visible in UI, not export) */}
-          <div className="absolute -top-16 left-0 right-0 flex items-end justify-between text-zinc-400 font-bold font-mono tracking-[0.2em] pointer-events-none select-none px-2">
+          <div className="absolute -top-16 left-0 right-0 flex items-end justify-between text-zinc-400 font-bold font-mono tracking-[0.2em] pointer-events-none select-none px-2 paper-info-overlay">
             <div className="flex flex-col gap-1">
               <span className="text-xl text-zinc-900 dark:text-white flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-indigo-500 animate-pulse"></div>

@@ -30,29 +30,39 @@ export default function StudioPage() {
     
     try {
       // 1. PREPARE HTML & CSS
-      // We clone the element to modify it for export without affecting the UI
       const clone = element.cloneNode(true) as HTMLElement
       
-      // Cleanup UI-only elements like handles
-      clone.querySelectorAll('.rotate-handle').forEach(el => el.remove())
+      // Deep cleanup of UI-only elements
+      // Remove rotation handles, slot outlines (if not wanted), and paper info overlays
+      clone.querySelectorAll('.rotate-handle, .paper-info-overlay, .pointer-events-none').forEach(el => el.remove())
       
-      // Force dimensions for accurate server-side rendering
+      // Preserve the exact computed dimensions and styles
       clone.style.width = element.offsetWidth + 'px'
       clone.style.height = element.offsetHeight + 'px'
       clone.style.margin = '0'
       clone.style.boxShadow = 'none'
+      clone.style.position = 'relative'
+      clone.style.overflow = 'hidden'
 
       const html = clone.outerHTML
       
-      // Collect all document styles to ensure Tailwind v4 features are preserved
-      const css = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-        .map(el => {
-          if (el.tagName === 'STYLE') return el.innerHTML;
-          // For external sheets, we'd ideally fetch them, but for Tailwind in Next.js, 
-          // most styles are in <style> tags or the global bundle.
-          return '';
-        })
-        .join('\n')
+      // Advanced CSS Collection: Extract all rules from all stylesheets
+      // This is necessary for Tailwind v4 and modern CSS features
+      let css = ''
+      try {
+        const sheets = Array.from(document.styleSheets)
+        for (const sheet of sheets) {
+          try {
+            const rules = Array.from(sheet.cssRules)
+            css += rules.map(rule => rule.cssText).join('\n')
+          } catch (e) {
+            // Cross-origin sheets might throw security errors, skip them
+            console.warn('[Export] Could not read stylesheet rules:', e)
+          }
+        }
+      } catch (e) {
+        console.error('[Export] Style collection failed:', e)
+      }
 
       // 2. SEND TO SERVER-SIDE PUPPETEER API
       const response = await fetch('/api/export-pdf', {

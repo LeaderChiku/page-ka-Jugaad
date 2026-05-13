@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
     const origin = new URL(req.url).origin
     
     // Construct full HTML document with injected styles
+    // We resolve all relative URLs to absolute URLs so Puppeteer can fetch them
     const fullHtml = `
       <!DOCTYPE html>
       <html>
@@ -87,6 +88,8 @@ export async function POST(req: NextRequest) {
               background: white; 
               -webkit-print-color-adjust: exact; 
               print-color-adjust: exact;
+              width: ${dimensions?.width ? dimensions.width + 'px' : 'auto'};
+              height: ${dimensions?.height ? dimensions.height + 'px' : 'auto'};
             }
             * { box-sizing: border-box; }
             @page { margin: 0; }
@@ -96,19 +99,46 @@ export async function POST(req: NextRequest) {
           </style>
         </head>
         <body>
-          <div style="width: ${dimensions?.width || '100%'}; height: ${dimensions?.height || '100%'};">
-            ${html}
-          </div>
+          ${html}
         </body>
       </html>
-    `.replace(/src="\/api\/drive-image/g, `src="${origin}/api/drive-image`)
+    `
+    // Resolve relative URLs for images and other assets
+    .replace(/src="\//g, `src="${origin}/`)
+    .replace(/href="\//g, `href="${origin}/`)
 
     console.log('[PDF Export] HTML prepared and URLs resolved')
     
+    // Use a larger viewport to ensure no wrapping issues
+    await page.setViewport({
+      width: dimensions?.width || 1280,
+      height: dimensions?.height || 720,
+      deviceScaleFactor: 2, // High DPI for better quality
+    })
+
     await page.setContent(fullHtml, {
-      waitUntil: 'networkidle0' as any,
+      waitUntil: ['networkidle0', 'load', 'domcontentloaded'] as any,
       timeout: 30000
     })
+
+    // CRITICAL: Wait for all images to be fully loaded and decoded
+    console.log('[PDF Export] Waiting for images and fonts...')
+    await page.evaluate(async () => {
+      const images = Array.from(document.querySelectorAll('img'))
+      await Promise.all([
+        document.fonts.ready,
+        ...images.map(img => {
+          if (img.complete) return Promise.resolve()
+          return new Promise((resolve) => {
+            img.onload = resolve
+            img.onerror = resolve
+          })
+        })
+      ])
+    })
+
+    // Give a small extra buffer for any CSS transitions or final layout shifts
+    await new Promise(r => setTimeout(r, 500))
 
     // 3. GENERATE PDF
     console.log('[PDF Export] Generating PDF buffer...')
