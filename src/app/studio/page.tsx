@@ -14,40 +14,29 @@ export default function StudioPage() {
   const [exporting, setExporting] = React.useState(false)
   const { paperSize, orientation } = useStudioStore()
 
-  const handleExportPDF = async () => {
+  const handleExport = async () => {
     const element = document.getElementById('studio-canvas-paper')
     if (!element) {
-      console.error('[PDF FLOW] CRITICAL ERROR: studio-canvas-paper element NOT FOUND')
+      console.error('[Export] Canvas element not found')
       return
     }
 
-    console.log('[PDF FLOW] Button clicked - handleExportPDF triggered')
-    console.log('[PDF FLOW] Trace ID: ' + Date.now())
-    console.log('[PDF FLOW] Current logic: Puppeteer server-side export')
-    
-    // Safety check: Is html2canvas somehow leaked into global scope?
-    if (typeof (window as any).html2canvas !== 'undefined') {
-      console.warn('[PDF FLOW] WARNING: html2canvas found in global scope! This should not happen.')
-    } else {
-      console.log('[PDF FLOW] GLOBAL CHECK: html2canvas is NOT present in global scope.')
-    }
-
-    console.log('[PDF FLOW] Starting server-side PDF generation...')
-    
     setExporting(true)
-    toast.info("Generating high-quality PDF...", { description: "Using server-side Puppeteer for maximum stability." })
+    toast.info("Generating high-quality PDF...", { 
+      description: "Preparing your layout for professional export." 
+    })
 
     let blobUrl: string | null = null;
     
     try {
       // 1. PREPARE HTML & CSS
-      console.log('[PDF Export] Preparing layout data...')
+      // We clone the element to modify it for export without affecting the UI
       const clone = element.cloneNode(true) as HTMLElement
       
-      // Cleanup UI elements that shouldn't be in the PDF
+      // Cleanup UI-only elements like handles
       clone.querySelectorAll('.rotate-handle').forEach(el => el.remove())
       
-      // Ensure the clone has the same dimensions as the original for accurate rendering
+      // Force dimensions for accurate server-side rendering
       clone.style.width = element.offsetWidth + 'px'
       clone.style.height = element.offsetHeight + 'px'
       clone.style.margin = '0'
@@ -55,13 +44,17 @@ export default function StudioPage() {
 
       const html = clone.outerHTML
       
-      // Capture all styles from the current document
-      const css = Array.from(document.querySelectorAll('style'))
-        .map(style => style.innerHTML)
+      // Collect all document styles to ensure Tailwind v4 features are preserved
+      const css = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+        .map(el => {
+          if (el.tagName === 'STYLE') return el.innerHTML;
+          // For external sheets, we'd ideally fetch them, but for Tailwind in Next.js, 
+          // most styles are in <style> tags or the global bundle.
+          return '';
+        })
         .join('\n')
 
-      // 2. SEND TO API
-      console.log('[PDF FLOW] Attempting fetch to /api/export-pdf...')
+      // 2. SEND TO SERVER-SIDE PUPPETEER API
       const response = await fetch('/api/export-pdf', {
         method: 'POST',
         headers: {
@@ -75,7 +68,8 @@ export default function StudioPage() {
           dimensions: {
             width: element.offsetWidth,
             height: element.offsetHeight
-          }
+          },
+          cookies: document.cookie
         }),
       })
 
@@ -84,13 +78,10 @@ export default function StudioPage() {
         throw new Error(errorData.error || 'Failed to generate PDF')
       }
 
-      // 3. RECEIVE & DOWNLOAD
-      console.log(`[PDF FLOW] Response received: status=${response.status}`)
+      // 3. HANDLE PDF DOWNLOAD
       const pdfBlob = await response.blob()
-      console.log(`[PDF FLOW] Blob received: size=${pdfBlob.size} bytes`)
       blobUrl = URL.createObjectURL(pdfBlob)
       
-      console.log('[PDF FLOW] Triggering browser download via <a> element...')
       const link = document.createElement('a')
       link.href = blobUrl
       link.download = `pagekajugaad-${paperSize.toLowerCase()}-${orientation}.pdf`
@@ -98,20 +89,15 @@ export default function StudioPage() {
       link.click()
       document.body.removeChild(link)
 
-      console.log('[PDF FLOW] Download triggered successfully.')
       toast.success("PDF exported successfully!")
-      console.log('[PDF FLOW] Export process COMPLETE.')
 
     } catch (err: any) {
-      console.error("[PDF Export] CRITICAL FAILURE:", err)
-      toast.error("PDF generation failed", {
-        description: err.message || "Server-side generation failed. Please try again."
+      console.error("[Export] Failure:", err)
+      toast.error("Export failed", {
+        description: err.message || "Something went wrong while generating the PDF."
       })
     } finally {
-      if (blobUrl) {
-        URL.revokeObjectURL(blobUrl)
-        console.log('[PDF Export] Blob URL revoked.')
-      }
+      if (blobUrl) URL.revokeObjectURL(blobUrl)
       setExporting(false)
     }
   }
@@ -136,7 +122,7 @@ export default function StudioPage() {
           <div className="absolute bottom-8 right-8 z-20">
             <Button 
               size="lg" 
-              onClick={handleExportPDF}
+              onClick={handleExport}
               disabled={exporting}
               className="rounded-full px-8 py-7 text-lg font-bold bg-indigo-600 hover:bg-indigo-700 shadow-2xl shadow-indigo-500/40 border-none group transition-all transform hover:scale-105 active:scale-95"
             >
