@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
     console.log('[PDF Export] HTML prepared and URLs resolved')
     
     await page.setContent(fullHtml, {
-      waitUntil: 'networkidle0',
+      waitUntil: 'networkidle0' as any,
       timeout: 30000
     })
 
