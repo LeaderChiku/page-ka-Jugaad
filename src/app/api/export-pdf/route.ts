@@ -23,24 +23,28 @@ export async function POST(req: NextRequest) {
     const isLocal = process.env.NODE_ENV === 'development' || !process.env.VERCEL
     
     let executablePath = ''
-    if (isLocal) {
-      if (process.platform === 'win32') {
-        executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+    try {
+      if (isLocal) {
+        if (process.platform === 'win32') {
+          executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+        } else {
+          executablePath = '/usr/bin/google-chrome'
+        }
       } else {
-        executablePath = '/usr/bin/google-chrome'
+        // Explicitly set the binary path if available, or let the package resolve it
+        executablePath = await chromium.executablePath()
       }
-    } else {
-      executablePath = await chromium.executablePath()
+      console.log(`[PDF Export] Executable path resolved: ${executablePath}`)
+    } catch (pathError: any) {
+      console.error('[PDF Export] Path resolution error:', pathError)
+      throw new Error(`Failed to resolve Chromium path: ${pathError.message}`)
     }
 
     browser = await puppeteer.launch({
-      args: isLocal ? [] : chromium.args,
+      args: isLocal ? [] : [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
+      defaultViewport: { width: 1280, height: 720 },
       executablePath,
       headless: true,
-      defaultViewport: {
-        width: 1280,
-        height: 720,
-      },
     })
 
     const page = await browser.newPage()
